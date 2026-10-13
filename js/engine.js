@@ -100,12 +100,14 @@ export function scoreCard(card, cats, { currencies, log = [], amount = 0, date =
     blocked = `Not accepted here (${networks.join('/')} only)`;
   }
   if (missed && missed.pct <= best.pct) missed = null;
-  return { card, ...best, notes, missed, blocked };
+  const set = new Set(cats);
+  const perks = (card.benefits || []).filter((b) => b.cats?.some((c) => set.has(c)));
+  return { card, ...best, notes, missed, blocked, perks };
 }
 
 export function rankCards(cards, cats, opts = {}) {
   const scored = cards.filter((c) => !c.hidden).map((c) => scoreCard(c, cats, opts));
-  scored.sort((a, b) => (!!a.blocked - !!b.blocked) || (b.pct - a.pct) || a.card.name.localeCompare(b.card.name));
+  scored.sort((a, b) => (!!a.blocked - !!b.blocked) || (b.pct - a.pct) || (b.perks.length - a.perks.length) || a.card.name.localeCompare(b.card.name));
   return scored;
 }
 

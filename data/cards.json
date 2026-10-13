@@ -1,0 +1,902 @@
+{
+  "schema": 1,
+  "updated": "2026-10-13",
+  "currencies": {
+    "cash": {
+      "name": "Cash back",
+      "cpp": 1,
+      "locked": true
+    },
+    "chase_ur": {
+      "name": "Chase Ultimate Rewards",
+      "cpp": 1,
+      "note": "1¢ as cash. Worth more if you transfer to airlines/hotels or use Points Boost."
+    },
+    "amex_mr": {
+      "name": "Amex Membership Rewards",
+      "cpp": 1,
+      "note": "Often 0.6–0.8¢ as statement credit; more via transfer partners."
+    },
+    "citi_ty": {
+      "name": "Citi ThankYou",
+      "cpp": 1,
+      "note": "1¢ as cash; more via transfer partners."
+    },
+    "cap1_miles": {
+      "name": "Capital One miles",
+      "cpp": 1,
+      "note": "1¢ toward travel; more via transfer partners."
+    },
+    "gm": {
+      "name": "GM Rewards points",
+      "cpp": 0.25,
+      "note": "Only usable toward GM vehicles/service. Set this to what they are really worth to you — if you rarely buy GM, keep it low."
+    }
+  },
+  "cards": [
+    {
+      "presetId": "discover_it",
+      "name": "Discover it Cash Back",
+      "short": "Discover",
+      "network": "discover",
+      "currency": "cash",
+      "color": "#ff6000",
+      "base": 1,
+      "rules": [],
+      "rotating": {
+        "activationRequired": true,
+        "cap": {
+          "amount": 1500,
+          "period": "quarter"
+        },
+        "quarters": {
+          "2026-Q4": {
+            "cats": [
+              "dining",
+              "entertainment",
+              "utilities"
+            ],
+            "rate": 5
+          }
+        }
+      },
+      "benefits": [],
+      "version": "2026-10-01",
+      "changelog": []
+    },
+    {
+      "presetId": "freedom_flex",
+      "name": "Chase Freedom Flex",
+      "short": "Freedom Flex",
+      "network": "mastercard",
+      "currency": "chase_ur",
+      "color": "#1a5ba6",
+      "base": 1,
+      "rules": [
+        {
+          "cats": [
+            "dining"
+          ],
+          "rate": 3
+        },
+        {
+          "cats": [
+            "drugstore"
+          ],
+          "rate": 3
+        }
+      ],
+      "rotating": {
+        "activationRequired": true,
+        "cap": {
+          "amount": 1500,
+          "period": "quarter"
+        },
+        "quarters": {
+          "2026-Q4": {
+            "cats": [
+              "dining",
+              "groceries",
+              "charity"
+            ],
+            "rate": 5,
+            "rates": {
+              "dining": 7
+            }
+          }
+        }
+      },
+      "benefits": [
+        {
+          "text": "Cell phone protection (up to $800/claim) when you pay your phone bill with this card",
+          "cats": [
+            "utilities"
+          ]
+        },
+        {
+          "text": "Purchase protection & extended warranty"
+        },
+        {
+          "text": "Trip cancellation/interruption insurance",
+          "cats": [
+            "airfare"
+          ]
+        }
+      ],
+      "version": "2026-10-01",
+      "changelog": []
+    },
+    {
+      "presetId": "freedom_unlimited",
+      "name": "Chase Freedom Unlimited",
+      "short": "Freedom Unl.",
+      "network": "visa",
+      "currency": "chase_ur",
+      "color": "#2d6fc0",
+      "base": 1.5,
+      "rules": [
+        {
+          "cats": [
+            "dining"
+          ],
+          "rate": 3
+        },
+        {
+          "cats": [
+            "drugstore"
+          ],
+          "rate": 3
+        }
+      ],
+      "benefits": [
+        {
+          "text": "Purchase protection & extended warranty"
+        },
+        {
+          "text": "Trip cancellation/interruption insurance",
+          "cats": [
+            "airfare"
+          ]
+        }
+      ],
+      "version": "2026-10-01",
+      "changelog": []
+    },
+    {
+      "presetId": "sapphire_preferred",
+      "name": "Chase Sapphire Preferred",
+      "short": "Sapphire Pref.",
+      "network": "visa",
+      "currency": "chase_ur",
+      "color": "#0b2f5b",
+      "base": 1,
+      "rules": [
+        {
+          "cats": [
+            "dining"
+          ],
+          "rate": 3
+        },
+        {
+          "cats": [
+            "streaming"
+          ],
+          "rate": 3
+        },
+        {
+          "cats": [
+            "gas",
+            "ev_charging"
+          ],
+          "rate": 3
+        },
+        {
+          "cats": [
+            "@travel"
+          ],
+          "rate": 2
+        }
+      ],
+      "benefits": [
+        {
+          "text": "Primary rental car insurance (decline the rental company CDW)",
+          "cats": [
+            "car_rental"
+          ]
+        },
+        {
+          "text": "Trip delay insurance (12+ hrs, up to $500/ticket) and trip cancellation/interruption",
+          "cats": [
+            "airfare"
+          ]
+        },
+        {
+          "text": "Baggage delay insurance",
+          "cats": [
+            "airfare"
+          ]
+        },
+        {
+          "text": "TSA PreCheck / Global Entry / NEXUS credit, up to $120 every 4 years",
+          "cats": [
+            "travel_other"
+          ]
+        },
+        {
+          "text": "$100 Chase Travel hotel credit each account year",
+          "cats": [
+            "hotels"
+          ]
+        },
+        {
+          "text": "Emergency evacuation & transportation coverage"
+        },
+        {
+          "text": "Purchase protection & extended warranty"
+        }
+      ],
+      "version": "2026-10-13",
+      "changelog": [
+        {
+          "date": "2026-10-13",
+          "text": "June 2026 refresh: now 3x on gas & EV charging; new TSA PreCheck/Global Entry/NEXUS credit (up to $120 every 4 years); hotel credit raised to $100; emergency evacuation coverage added. Hyatt point transfers worsened to 4:3."
+        }
+      ]
+    },
+    {
+      "presetId": "sapphire_reserve",
+      "name": "Chase Sapphire Reserve",
+      "short": "Sapphire Res.",
+      "network": "visa",
+      "currency": "chase_ur",
+      "color": "#1c2833",
+      "base": 1,
+      "rules": [
+        {
+          "cats": [
+            "airfare",
+            "hotels"
+          ],
+          "rate": 4,
+          "label": "Booked direct"
+        },
+        {
+          "cats": [
+            "dining"
+          ],
+          "rate": 3
+        }
+      ],
+      "benefits": [
+        {
+          "text": "Primary rental car insurance",
+          "cats": [
+            "car_rental"
+          ]
+        },
+        {
+          "text": "Trip delay insurance (6+ hrs) and trip cancellation/interruption",
+          "cats": [
+            "airfare"
+          ]
+        },
+        {
+          "text": "Priority Pass airport lounges",
+          "cats": [
+            "airfare"
+          ]
+        },
+        {
+          "text": "TSA PreCheck / Global Entry / NEXUS credit",
+          "cats": [
+            "travel_other"
+          ]
+        }
+      ],
+      "version": "2026-10-01",
+      "changelog": []
+    },
+    {
+      "presetId": "amex_gold",
+      "name": "Amex Gold",
+      "short": "Amex Gold",
+      "network": "amex",
+      "currency": "amex_mr",
+      "color": "#b8913a",
+      "base": 1,
+      "rules": [
+        {
+          "cats": [
+            "dining"
+          ],
+          "rate": 4,
+          "cap": {
+            "amount": 50000,
+            "period": "year"
+          }
+        },
+        {
+          "cats": [
+            "groceries"
+          ],
+          "rate": 4,
+          "cap": {
+            "amount": 25000,
+            "period": "year"
+          }
+        },
+        {
+          "cats": [
+            "airfare"
+          ],
+          "rate": 3,
+          "label": "Booked direct"
+        }
+      ],
+      "benefits": [
+        {
+          "text": "Up to $120/yr dining credit at select partners",
+          "cats": [
+            "dining"
+          ]
+        },
+        {
+          "text": "Up to $120/yr Uber Cash (Uber / Uber Eats)",
+          "cats": [
+            "rideshare",
+            "dining"
+          ]
+        },
+        {
+          "text": "Secondary rental car insurance",
+          "cats": [
+            "car_rental"
+          ]
+        }
+      ],
+      "version": "2026-10-01",
+      "changelog": []
+    },
+    {
+      "presetId": "amex_bcp",
+      "name": "Amex Blue Cash Preferred",
+      "short": "Blue Cash Pref.",
+      "network": "amex",
+      "currency": "cash",
+      "color": "#2671b9",
+      "base": 1,
+      "rules": [
+        {
+          "cats": [
+            "groceries"
+          ],
+          "rate": 6,
+          "cap": {
+            "amount": 6000,
+            "period": "year"
+          }
+        },
+        {
+          "cats": [
+            "streaming"
+          ],
+          "rate": 6
+        },
+        {
+          "cats": [
+            "gas"
+          ],
+          "rate": 3
+        },
+        {
+          "cats": [
+            "transit",
+            "rideshare"
+          ],
+          "rate": 3
+        }
+      ],
+      "benefits": [
+        {
+          "text": "Secondary rental car insurance",
+          "cats": [
+            "car_rental"
+          ]
+        }
+      ],
+      "version": "2026-10-01",
+      "changelog": []
+    },
+    {
+      "presetId": "amex_bce",
+      "name": "Amex Blue Cash Everyday",
+      "short": "Blue Cash Every.",
+      "network": "amex",
+      "currency": "cash",
+      "color": "#4a90d9",
+      "base": 1,
+      "rules": [
+        {
+          "cats": [
+            "groceries"
+          ],
+          "rate": 3,
+          "cap": {
+            "amount": 6000,
+            "period": "year",
+            "group": "groc"
+          }
+        },
+        {
+          "cats": [
+            "online",
+            "amazon"
+          ],
+          "rate": 3,
+          "cap": {
+            "amount": 6000,
+            "period": "year",
+            "group": "online"
+          }
+        },
+        {
+          "cats": [
+            "gas"
+          ],
+          "rate": 3,
+          "cap": {
+            "amount": 6000,
+            "period": "year",
+            "group": "gas"
+          }
+        }
+      ],
+      "benefits": [
+        {
+          "text": "Secondary rental car insurance",
+          "cats": [
+            "car_rental"
+          ]
+        }
+      ],
+      "version": "2026-10-01",
+      "changelog": []
+    },
+    {
+      "presetId": "citi_double_cash",
+      "name": "Citi Double Cash",
+      "short": "Double Cash",
+      "network": "mastercard",
+      "currency": "cash",
+      "color": "#056dae",
+      "base": 2,
+      "rules": [],
+      "benefits": [],
+      "version": "2026-10-01",
+      "changelog": []
+    },
+    {
+      "presetId": "citi_custom_cash",
+      "name": "Citi Custom Cash",
+      "short": "Custom Cash",
+      "network": "mastercard",
+      "currency": "cash",
+      "color": "#00a3e0",
+      "base": 1,
+      "rules": [
+        {
+          "cats": [
+            "dining"
+          ],
+          "rate": 5,
+          "cap": {
+            "amount": 500,
+            "period": "month"
+          },
+          "label": "Your top category each billing cycle",
+          "choiceOptions": [
+            "dining",
+            "groceries",
+            "gas",
+            "ev_charging",
+            "drugstore",
+            "home_improvement",
+            "fitness",
+            "streaming",
+            "transit",
+            "travel_other",
+            "entertainment"
+          ]
+        }
+      ],
+      "benefits": [],
+      "version": "2026-10-01",
+      "changelog": []
+    },
+    {
+      "presetId": "savor",
+      "name": "Capital One Savor",
+      "short": "Savor",
+      "network": "mastercard",
+      "currency": "cash",
+      "color": "#8a1538",
+      "base": 1,
+      "rules": [
+        {
+          "cats": [
+            "dining",
+            "entertainment",
+            "streaming",
+            "groceries"
+          ],
+          "rate": 3
+        }
+      ],
+      "benefits": [],
+      "version": "2026-10-01",
+      "changelog": []
+    },
+    {
+      "presetId": "quicksilver",
+      "name": "Capital One Quicksilver",
+      "short": "Quicksilver",
+      "network": "mastercard",
+      "currency": "cash",
+      "color": "#7d8a96",
+      "base": 1.5,
+      "rules": [],
+      "benefits": [],
+      "version": "2026-10-01",
+      "changelog": []
+    },
+    {
+      "presetId": "venture_x",
+      "name": "Capital One Venture X",
+      "short": "Venture X",
+      "network": "visa",
+      "currency": "cap1_miles",
+      "color": "#23303d",
+      "base": 2,
+      "rules": [],
+      "benefits": [
+        {
+          "text": "Primary rental car insurance",
+          "cats": [
+            "car_rental"
+          ]
+        },
+        {
+          "text": "Priority Pass & Capital One lounges",
+          "cats": [
+            "airfare"
+          ]
+        },
+        {
+          "text": "TSA PreCheck / Global Entry credit",
+          "cats": [
+            "travel_other"
+          ]
+        },
+        {
+          "text": "Cell phone protection when you pay your phone bill with this card",
+          "cats": [
+            "utilities"
+          ]
+        }
+      ],
+      "version": "2026-10-01",
+      "changelog": []
+    },
+    {
+      "presetId": "wf_active_cash",
+      "name": "Wells Fargo Active Cash",
+      "short": "Active Cash",
+      "network": "visa",
+      "currency": "cash",
+      "color": "#d71e28",
+      "base": 2,
+      "rules": [],
+      "benefits": [
+        {
+          "text": "Cell phone protection (up to $600/claim) when you pay your phone bill with this card",
+          "cats": [
+            "utilities"
+          ]
+        }
+      ],
+      "version": "2026-10-01",
+      "changelog": []
+    },
+    {
+      "presetId": "wf_autograph",
+      "name": "Wells Fargo Autograph",
+      "short": "Autograph",
+      "network": "visa",
+      "currency": "cash",
+      "color": "#5a1a1a",
+      "base": 1,
+      "rules": [
+        {
+          "cats": [
+            "@travel",
+            "dining",
+            "gas",
+            "ev_charging",
+            "streaming",
+            "utilities"
+          ],
+          "rate": 3
+        }
+      ],
+      "benefits": [
+        {
+          "text": "Cell phone protection (up to $600/claim) when you pay your phone bill with this card",
+          "cats": [
+            "utilities"
+          ]
+        }
+      ],
+      "version": "2026-10-01",
+      "changelog": []
+    },
+    {
+      "presetId": "bofa_customized",
+      "name": "BofA Customized Cash",
+      "short": "BofA Custom.",
+      "network": "visa",
+      "currency": "cash",
+      "color": "#e31837",
+      "base": 1,
+      "rules": [
+        {
+          "cats": [
+            "gas"
+          ],
+          "rate": 3,
+          "cap": {
+            "amount": 2500,
+            "period": "quarter",
+            "group": "combo"
+          },
+          "label": "Your choice category",
+          "choiceOptions": [
+            "gas",
+            "online",
+            "dining",
+            "travel_other",
+            "drugstore",
+            "home_improvement"
+          ]
+        },
+        {
+          "cats": [
+            "groceries",
+            "wholesale"
+          ],
+          "rate": 2,
+          "cap": {
+            "amount": 2500,
+            "period": "quarter",
+            "group": "combo"
+          }
+        }
+      ],
+      "benefits": [],
+      "version": "2026-10-01",
+      "changelog": []
+    },
+    {
+      "presetId": "usbank_cash_plus",
+      "name": "U.S. Bank Cash+",
+      "short": "Cash+",
+      "network": "visa",
+      "currency": "cash",
+      "color": "#0c2074",
+      "base": 1,
+      "rules": [
+        {
+          "cats": [
+            "utilities"
+          ],
+          "rate": 5,
+          "cap": {
+            "amount": 2000,
+            "period": "quarter",
+            "group": "five"
+          },
+          "label": "Choice #1",
+          "choiceOptions": [
+            "utilities",
+            "fitness",
+            "department",
+            "home_improvement",
+            "entertainment",
+            "streaming",
+            "transit"
+          ]
+        },
+        {
+          "cats": [
+            "streaming"
+          ],
+          "rate": 5,
+          "cap": {
+            "amount": 2000,
+            "period": "quarter",
+            "group": "five"
+          },
+          "label": "Choice #2",
+          "choiceOptions": [
+            "utilities",
+            "fitness",
+            "department",
+            "home_improvement",
+            "entertainment",
+            "streaming",
+            "transit"
+          ]
+        },
+        {
+          "cats": [
+            "groceries"
+          ],
+          "rate": 2,
+          "label": "Everyday choice",
+          "choiceOptions": [
+            "groceries",
+            "gas",
+            "ev_charging",
+            "dining"
+          ]
+        }
+      ],
+      "benefits": [],
+      "version": "2026-10-01",
+      "changelog": []
+    },
+    {
+      "presetId": "costco_citi",
+      "name": "Costco Anywhere Visa (Citi)",
+      "short": "Costco Visa",
+      "network": "visa",
+      "currency": "cash",
+      "color": "#005daa",
+      "base": 1,
+      "rules": [
+        {
+          "cats": [
+            "gas",
+            "ev_charging"
+          ],
+          "rate": 4,
+          "cap": {
+            "amount": 7000,
+            "period": "year"
+          }
+        },
+        {
+          "cats": [
+            "@travel",
+            "dining"
+          ],
+          "rate": 3
+        },
+        {
+          "cats": [
+            "costco"
+          ],
+          "rate": 2
+        }
+      ],
+      "benefits": [],
+      "version": "2026-10-01",
+      "changelog": []
+    },
+    {
+      "presetId": "prime_visa",
+      "name": "Amazon Prime Visa",
+      "short": "Prime Visa",
+      "network": "visa",
+      "currency": "cash",
+      "color": "#232f3e",
+      "base": 1,
+      "rules": [
+        {
+          "cats": [
+            "amazon",
+            "whole_foods"
+          ],
+          "rate": 5
+        },
+        {
+          "cats": [
+            "dining",
+            "gas",
+            "transit",
+            "rideshare"
+          ],
+          "rate": 2
+        }
+      ],
+      "benefits": [],
+      "version": "2026-10-01",
+      "changelog": []
+    },
+    {
+      "presetId": "target_circle",
+      "name": "Target Circle Card",
+      "short": "Target Card",
+      "network": "mastercard",
+      "currency": "cash",
+      "color": "#cc0000",
+      "base": 0,
+      "rules": [
+        {
+          "cats": [
+            "target"
+          ],
+          "rate": 5,
+          "label": "5% off at Target"
+        }
+      ],
+      "benefits": [
+        {
+          "text": "Free 2-day shipping on most Target.com orders and 30 extra days for returns",
+          "cats": [
+            "target"
+          ]
+        }
+      ],
+      "version": "2026-10-01",
+      "changelog": []
+    },
+    {
+      "presetId": "gm_rewards_mastercard",
+      "name": "GM Rewards Mastercard (2025+)",
+      "short": "GM Rewards",
+      "network": "mastercard",
+      "currency": "gm",
+      "color": "#3d4f63",
+      "base": 3,
+      "rules": [
+        {
+          "cats": [
+            "gm"
+          ],
+          "rate": 10,
+          "label": "7x card + 3x GM Rewards member bonus"
+        }
+      ],
+      "benefits": [
+        {
+          "text": "0% APR financing options on qualifying GM purchases over $499",
+          "cats": [
+            "gm"
+          ]
+        }
+      ],
+      "version": "2026-10-01",
+      "changelog": []
+    },
+    {
+      "presetId": "my_gm_rewards",
+      "name": "My GM Rewards Card (older version)",
+      "short": "GM (old)",
+      "network": "mastercard",
+      "currency": "gm",
+      "color": "#3d4f63",
+      "base": 4,
+      "rules": [
+        {
+          "cats": [
+            "gm"
+          ],
+          "rate": 7
+        }
+      ],
+      "benefits": [],
+      "version": "2026-10-01",
+      "changelog": []
+    }
+  ]
+}

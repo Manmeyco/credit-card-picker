@@ -20,6 +20,7 @@
   <main>
     <!-- PICK -->
     <section id="view-pick" class="view">
+      <div id="updates"></div>
       <button id="locateBtn" class="big-btn">📍 What card here?</button>
       <div id="locateStatus" class="muted small"></div>
       <div id="places" class="chips"></div>
@@ -50,6 +51,11 @@
       <h2 class="section-title">What your points are worth</h2>
       <p class="muted small">Cents per point, <em>to you</em>. Recommendations multiply each card's earn rate by this value, so restricted points (like GM Rewards) don't beat real cash back.</p>
       <div id="currencyList"></div>
+
+      <h2 class="section-title">Card updates</h2>
+      <p class="muted small" id="catalogInfo"></p>
+      <p class="muted small">Card terms and rotating categories are checked every time you open the app. Cards you haven't edited update automatically, and you can undo any change.</p>
+      <button id="checkUpdatesBtn">Check now</button>
 
       <h2 class="section-title">Location</h2>
       <label class="row"><input type="checkbox" id="autoLocate"> Look up my location when the app opens</label>

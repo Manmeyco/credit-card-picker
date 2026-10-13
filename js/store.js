@@ -1,12 +1,11 @@
 // Persistent state in localStorage. Everything stays on the phone.
-import { CURRENCIES, PRESETS } from './data.js';
 
 const KEY = 'card-picker:v1';
 
 function defaults() {
   return {
     wallet: [],
-    currencies: structuredClone(CURRENCIES),
+    currencies: {}, // filled from data/cards.json
     log: [],
     settings: { autoLocate: false, radius: 120 },
   };
@@ -24,18 +23,7 @@ export function load() {
   s.wallet ??= [];
   s.log ??= [];
   s.settings = { ...d.settings, ...(s.settings || {}) };
-  // Keep user-edited point values but pick up any new currencies.
-  s.currencies = { ...d.currencies, ...(s.currencies || {}) };
-  // Pull in newly published rotating quarters for preset cards, without
-  // overwriting quarters the user has edited.
-  for (const card of s.wallet) {
-    const preset = PRESETS.find((p) => p.presetId === card.presetId);
-    if (preset?.rotating && card.rotating) {
-      for (const [q, def] of Object.entries(preset.rotating.quarters)) {
-        card.rotating.quarters[q] ??= structuredClone(def);
-      }
-    }
-  }
+  s.currencies ??= {};
   return s;
 }
 
@@ -52,7 +40,8 @@ export function newUid() {
 }
 
 export function cardFromPreset(preset) {
-  return { ...structuredClone(preset), uid: newUid(), activated: {} };
+  const { changelog, version, ...rest } = structuredClone(preset);
+  return { ...rest, uid: newUid(), activated: {}, presetVersion: version };
 }
 
 export function blankCard() {

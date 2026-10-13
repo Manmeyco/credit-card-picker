@@ -1,4 +1,6 @@
-import { CATEGORIES, CATEGORY_BY_ID, MERCHANTS, PRESETS } from './data.js';
+import { CATEGORIES, CATEGORY_BY_ID, MERCHANTS } from './data.js';
+import { loadCatalog } from './catalog.js';
+import { syncWallet, syncCurrencies, undoUpdate, acceptUpdate, declineUpdate } from './sync.js';
 import { rankCards, quarterKey, spentInPeriod, capKey, fmt, fmtPct } from './engine.js';
 import { load, save, cardFromPreset, blankCard, newUid } from './store.js';
 import { getPosition, nearbyPlaces } from './location.js';
@@ -6,6 +8,8 @@ import { getPosition, nearbyPlaces } from './location.js';
 const state = load();
 let selection = null; // { title, cats, networks }
 let places = [];
+let catalog = { cards: [] };
+const CHECK_EVERY_MS = 6 * 60 * 60 * 1000;
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -100,6 +104,7 @@ function resultRow(r, isBest) {
       capLine && el('div', { class: 'small muted' }, capLine),
       r.notes.map((n) => el('div', { class: 'small warn' }, n)),
       r.blocked && el('div', { class: 'small warn' }, r.blocked),
+      r.perks.map((b) => el('div', { class: 'small tip' }, `💡 ${b.text}`)),
       r.missed && el('div', { class: 'small warn' },
         `Activate ${r.missed.quarter} bonus for ${fmtPct(r.missed.pct)}! `,
         el('button', { class: 'link', onclick: () => { c.activated[r.missed.quarter] = true; persist(); } }, 'I activated it'),
@@ -221,7 +226,16 @@ function renderWallet() {
         ),
         el('button', { class: 'link', onclick: () => editCard(card) }, 'Edit'),
       ),
+      card.pendingVersion && el('div', { class: 'small update' },
+        'An update is available for this card, but you have edited it. ',
+        el('button', { class: 'link', onclick: () => { acceptUpdate(card, catalog); persist(); } }, 'Use the update'),
+        el('button', { class: 'link', onclick: () => { declineUpdate(card); persist(); } }, 'Keep mine'),
+      ),
       parts,
+      card.benefits?.length > 0 && el('details', { class: 'benefits small' },
+        el('summary', {}, `Benefits (${card.benefits.length})`),
+        el('ul', {}, card.benefits.map((b) => el('li', {}, b.text))),
+      ),
     ));
   }
   renderLog();
@@ -268,7 +282,7 @@ function addCardDialog() {
   openDialog(() => [
     el('h2', {}, 'Add a card'),
     el('div', { class: 'preset-list' },
-      PRESETS.filter((p) => !owned.has(p.presetId)).map((p) =>
+      catalog.cards.filter((p) => !owned.has(p.presetId)).map((p) =>
         el('button', { type: 'button', class: 'preset', style: `--card:${p.color}`, onclick: () => {
           state.wallet.push(cardFromPreset(p));
           $('#dialog').close();
@@ -342,14 +356,14 @@ function editCard(card, isNew = false) {
       field('Quarterly cap $', el('input', { type: 'number', value: d.rotating.cap.amount, oninput: (e) => { d.rotating.cap.amount = Number(e.target.value); } })),
       Object.entries(d.rotating.quarters).sort(([a], [b]) => b.localeCompare(a)).map(([q, def]) => el('div', { class: 'rule' },
         el('strong', {}, q),
-        catPicker(def.cats, (arr) => { def.cats = arr; }),
-        field('Rate', el('input', { type: 'number', step: 'any', value: def.rate, oninput: (e) => { def.rate = Number(e.target.value); } })),
+        catPicker(def.cats, (arr) => { def.cats = arr; def.custom = true; }),
+        field('Rate', el('input', { type: 'number', step: 'any', value: def.rate, oninput: (e) => { def.rate = Number(e.target.value); def.custom = true; } })),
         def.rates && el('div', { class: 'small muted' }, 'Special rates: ' + Object.entries(def.rates).map(([c, r]) => `${catLabel(c)} ${r}`).join(', ')),
         el('button', { type: 'button', class: 'link warn', onclick: () => { delete d.rotating.quarters[q]; rerender(); } }, 'Remove quarter'),
       )),
       el('button', { type: 'button', onclick: () => {
         const q = prompt('Quarter (e.g. 2027-Q1)', nextQuarter(d.rotating.quarters));
-        if (q && /^\d{4}-Q[1-4]$/.test(q)) { d.rotating.quarters[q] ??= { cats: [], rate: 5 }; rerender(); }
+        if (q && /^\d{4}-Q[1-4]$/.test(q)) { d.rotating.quarters[q] ??= { cats: [], rate: 5, custom: true }; rerender(); }
       } }, '＋ Quarter'),
     ],
 
@@ -367,6 +381,8 @@ function editCard(card, isNew = false) {
   const rerender = () => $('#dialogBody').replaceChildren(...build().flat(Infinity));
   openDialog(() => build().flat(Infinity), () => {
     if (!d.rotating) delete d.rotating;
+    const fields = (c) => JSON.stringify(['name', 'network', 'currency', 'base', 'rules'].map((f) => c[f]));
+    if (d.presetId && fields(d) !== fields(card)) d.customized = true;
     const i = state.wallet.findIndex((c) => c.uid === d.uid);
     if (i >= 0) state.wallet[i] = d;
     else state.wallet.push(d);
@@ -404,14 +420,61 @@ function renderSettings() {
     state.currencies[`c_${newUid()}`] = { name, cpp: cpp || 1 };
     persist();
   } }, '＋ Add currency'));
+  $('#catalogInfo').textContent = catalog.updated
+    ? `Card data from ${catalog.updated}. Last checked ${state.lastChecked ? new Date(state.lastChecked).toLocaleString() : 'never'}.`
+    : 'Card data has not loaded yet (are you offline?).';
   $('#autoLocate').checked = state.settings.autoLocate;
   $('#radius').value = state.settings.radius;
 }
 
 // ---------- Shell ----------
 
+function renderNotices() {
+  const box = $('#updates');
+  box.replaceChildren();
+  state.notices ??= [];
+  for (const n of state.notices) {
+    const card = state.wallet.find((c) => c.uid === n.cardUid);
+    if (!card) continue;
+    const dismiss = () => { state.notices = state.notices.filter((x) => x !== n); persist(); };
+    box.append(el('div', { class: 'notice', style: `--card:${card.color}` },
+      el('div', { class: 'grow' },
+        el('strong', {}, n.applied ? `${card.name} updated` : `Update available: ${card.name}`),
+        n.entries.length
+          ? n.entries.map((e) => el('div', { class: 'small' }, e.text))
+          : el('div', { class: 'small muted' }, 'Card details refreshed.'),
+        el('div', {},
+          n.applied && card.previous && el('button', { class: 'link small', onclick: () => { undoUpdate(card); dismiss(); toast('Change undone'); } }, 'Undo'),
+          !n.applied && card.pendingVersion && [
+            el('button', { class: 'link small', onclick: () => { acceptUpdate(card, catalog); dismiss(); } }, 'Use the update'),
+            el('button', { class: 'link small', onclick: () => { declineUpdate(card); dismiss(); } }, 'Keep mine'),
+          ],
+        ),
+      ),
+      el('button', { class: 'link', 'aria-label': 'Dismiss', onclick: dismiss }, '✕'),
+    ));
+  }
+}
+
+async function refreshCatalog({ manual = false } = {}) {
+  try {
+    const res = await loadCatalog();
+    catalog = res.catalog;
+    syncCurrencies(state.currencies, catalog.currencies);
+    const notices = syncWallet(state.wallet, catalog);
+    state.notices = [...(state.notices || []), ...notices];
+    if (res.fresh) state.lastChecked = Date.now();
+    persist();
+    if (manual) toast(notices.length ? `${notices.length} card update(s)` : res.fresh ? 'Your cards are up to date' : 'Offline — using saved card data');
+  } catch {
+    if (manual) toast('Could not check for updates');
+    renderAll();
+  }
+}
+
 function renderAll() {
   $('#quarterBadge').textContent = quarterKey();
+  renderNotices();
   renderTiles();
   renderResult();
   renderWallet();
@@ -459,7 +522,13 @@ $('#importFile').addEventListener('change', async (e) => {
   }
 });
 
+$('#checkUpdatesBtn').addEventListener('click', () => refreshCatalog({ manual: true }));
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && Date.now() - (state.lastChecked || 0) > CHECK_EVERY_MS) refreshCatalog();
+});
+
 renderAll();
+await refreshCatalog();
 if (!state.wallet.length) showView('wallet');
 const params = new URLSearchParams(location.search);
 if (params.get('view')) showView(params.get('view'));

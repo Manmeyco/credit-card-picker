@@ -1,9 +1,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { PRESETS, CURRENCIES, MERCHANTS } from '../js/data.js';
+import { readFileSync } from 'node:fs';
+import { MERCHANTS } from '../js/data.js';
+import { normalizeCatalog } from '../js/catalog.js';
 import { rankCards, scoreCard, quarterKey, merchantFor } from '../js/engine.js';
 import { classifyTags } from '../js/location.js';
 
+const catalog = normalizeCatalog(JSON.parse(readFileSync(new URL('../data/cards.json', import.meta.url))));
+const PRESETS = catalog.cards;
+const CURRENCIES = catalog.currencies;
 const card = (id, extra = {}) => ({ ...structuredClone(PRESETS.find((p) => p.presetId === id)), uid: id, activated: {}, ...extra });
 const Q4 = new Date(2026, 10, 15); // Nov 15 2026
 const opts = (o = {}) => ({ currencies: structuredClone(CURRENCIES), log: [], date: Q4, ...o });
@@ -89,4 +94,10 @@ test('OSM classification', () => {
   assert.deepEqual(classifyTags({ amenity: 'fuel', brand: 'Costco', name: 'Costco Gasoline' }).cats.sort(), ['costco', 'gas']);
   assert.deepEqual(classifyTags({ shop: 'car', name: 'Smith Chevrolet' }).cats, ['gm', 'auto_service']);
   assert.deepEqual(classifyTags({ shop: 'wholesale', brand: 'Costco' }).cats, ['wholesale', 'costco']);
+});
+
+test('A relevant benefit breaks a tie (rental car insurance)', () => {
+  const [top] = rankCards([card('citi_double_cash'), card('sapphire_preferred')], ['car_rental', 'other'], opts());
+  assert.equal(top.card.presetId, 'sapphire_preferred');
+  assert.match(top.perks[0].text, /rental car/i);
 });

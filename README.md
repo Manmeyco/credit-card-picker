@@ -2,39 +2,67 @@
 
 A phone-friendly web app that tells you which credit card to use for a purchase. It fixes two problems with Credit Karma's version:
 
-1. **Rotating categories.** Discover it and Chase Freedom Flex 5% quarters are built in (Q4 2026: Discover = restaurants, entertainment, utilities; Freedom Flex = dining at 7x, groceries, Red Cross). It tracks whether you activated them and how much of the $1,500 cap you've used.
-2. **Points aren't all worth the same.** Each rewards currency has a cents-per-point value *you* set. GM Rewards points start at 0.25¢, so the GM card's "4x" counts as 1% and doesn't beat a 2% cash card. Raise or lower any value in Settings.
+1. **Rotating categories.** Discover it and Chase Freedom Flex quarterly categories are built in. The app tracks whether you activated each quarter and how much of the $1,500 cap you've used.
+2. **Points aren't all worth the same.** Each rewards currency has a cents-per-point value *you* set. GM Rewards points start at 0.25¢, so a GM card's "3x" counts as 0.75% and doesn't beat a 2% cash card. Change any value in Settings.
 
 Other features:
 
 - **📍 What card here?** Uses your phone's GPS and OpenStreetMap to find the store you're in, then ranks your cards for it. If it picks the wrong store, tap the right one in the list of nearby places.
-- **At a glance** tiles show the best card for each category (dining, groceries, gas, Amazon, Target, Costco, …).
-- Search by store name or category. Enter an amount to account for a cap you're about to go over.
-- Caps per month/quarter/year (Custom Cash $500/month, Amex BCP $6k/year, BofA combined caps, …). Tap **log $** after a purchase to count it toward the cap.
-- "Pick your category" cards (Citi Custom Cash, BofA Customized Cash, U.S. Bank Cash+). Choose the category in the Wallet tab.
-- Store payment rules: Costco only takes Visa in store, so other cards are flagged there.
-- 20 preset cards plus fully custom cards. Every number is editable.
-- Works offline (except the store lookup). All data stays on your phone. Export/Import in Settings for backups.
+- **At a glance** tiles show the best card for each category.
+- Card **benefits** appear where they matter. For example, renting a car shows which card has primary rental insurance, and ties go to the card with the relevant perk.
+- Spending caps per month/quarter/year, "pick your category" cards, and store payment rules (Costco only takes Visa in store).
+- **Automatic updates.** Card terms and rotating categories update by themselves (see below).
+- Works offline except the store lookup. All your data stays on your phone. Use Export/Import in Settings for backups.
 
-> Card terms change. The presets are a starting point — check each card in **Wallet → Edit** against your issuer's current terms.
+## Set it up (one time, ~5 minutes)
 
-## Put it on your Android phone
+### 1. Turn on the website (on a computer or phone browser)
 
-The app has to be served over HTTPS for location to work. GitHub Pages is the easiest way:
+1. Go to **https://github.com/Manmeyco/credit-card-picker/settings/pages**.
+2. Under **Build and deployment → Source**, choose **GitHub Actions**.
+3. Go to the **Actions** tab → **Deploy to GitHub Pages** → **Run workflow** → **Run workflow**. Wait ~1 minute for the green check.
+4. Your app is live at **https://manmeyco.github.io/credit-card-picker/**.
 
-1. Merge this branch into `main`.
-2. In the repo on GitHub: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
-   (GitHub Pages on a *private* repo needs a paid GitHub plan. Otherwise, make the repo public. It holds only app code; your card data never leaves your phone.)
-3. The workflow deploys to `https://<your-username>.github.io/credit-card-picker/`.
-4. Open that URL in **Chrome on Android** → ⋮ menu → **Add to Home screen / Install app**.
-5. Long-press the app icon for a **"What card here?"** shortcut. You can drag that shortcut onto your home screen as its own one-tap button.
-   To check your location every time the app opens, turn on **Settings → Look up my location when the app opens**.
+### 2. Install it on your Android phone
+
+1. Open **https://manmeyco.github.io/credit-card-picker/** in **Chrome**.
+2. Tap **⋮ → Add to Home screen → Install**.
+3. *(Optional one-tap button)* Long-press the new Card Picker icon. Drag the **"What card here?"** shortcut onto your home screen. Tapping it opens the app and looks up your location straight away.
+
+### 3. Add your cards
+
+1. The app opens on the **Wallet** tab. Tap **＋ Add a card** for each card you have.
+   - For GM, pick **GM Rewards Mastercard (2025+)** if you have the newer Barclays card (3x everywhere, up to 10x at GM). Pick **My GM Rewards Card (older version)** for the earlier 4x card.
+2. For Discover / Freedom Flex, tick **Activated** once you've activated the quarter's 5% categories with the bank.
+3. For "pick your category" cards (Citi Custom Cash, BofA Customized Cash, U.S. Bank Cash+), choose your category in the wallet.
+4. Tap **Edit** on any card to correct a number, if your terms differ.
+
+### 4. Set what your points are worth
+
+**Settings → What your points are worth.** Some guidance:
+
+- **Cash back** is always 1¢.
+- **GM Rewards:** if you'd only ever use the points on GM service, keep the value low (0.25¢ or less). If you're planning to buy a GM car soon, raise it toward 1¢.
+- **Chase / Amex / Citi / Capital One points:** 1¢ if you redeem for cash or statement credit. Use 1.25–2¢ if you transfer them to airlines or hotels.
+
+### 5. Optional settings
+
+- **Look up my location when the app opens** makes the app work like an automatic "card for this store" screen.
+- Allow location when Chrome asks. If you denied it: Android **Settings → Apps → Chrome → Permissions → Location**.
+
+### Everyday use
+
+Open the app (or tap the "What card here?" shortcut). The top card with the green highlight is the one to use. Tap **log $** after a purchase if the card has a spending cap, so the app knows how much bonus room is left.
 
 About widgets: a web app can't add a real Android home-screen widget. The launcher shortcut is the closest thing. A native widget would need a separate Android app build.
 
-## Updating rotating categories
+## Automatic updates
 
-When a new quarter is announced, update the `quarters` entries in `js/data.js` for the Discover and Freedom Flex presets. Cards already in your wallet pick up new quarters automatically. You can also add a quarter yourself in the app: **Wallet → Edit → ＋ Quarter**.
+- Card terms live in [`data/cards.json`](data/cards.json). The app checks it every time it opens (and again if it has been in the background for 6+ hours). Use **Settings → Check now** to check by hand.
+- **A scheduled Claude routine** researches changes. It runs on the 16th of every month and on the 1st of each quarter, following [`UPDATING.md`](UPDATING.md). It covers new rotating categories, changed earn rates and caps, and benefits added or removed. It must pass the data checks (`npm test`) before publishing.
+- When a card in your wallet changes, the app shows a notice with what changed and an **Undo** button.
+- Cards you have **edited yourself** are never overwritten. You get "Use the update / Keep mine" instead.
+- New rotating quarters always arrive, except for any quarter you edited by hand.
 
 ## Development
 
@@ -42,13 +70,16 @@ No build step. Plain HTML/CSS/ES modules.
 
 ```sh
 npm start    # serves on http://localhost:8080
-npm test     # ranking-logic tests (Node 20+)
+npm test     # ranking, update-sync, and card-data validation tests (Node 20+)
 ```
 
 | File | What it does |
 |---|---|
-| `js/data.js` | Categories, point currencies, card presets, merchant directory, OpenStreetMap tag mapping |
-| `js/engine.js` | Ranking: earn rate × point value, caps, rotating quarters, activation, network acceptance |
+| `data/cards.json` | Card presets, benefits, rotating quarters, point currencies, changelog |
+| `js/catalog.js` | Loads `cards.json` (cached for offline) |
+| `js/sync.js` | Applies catalog updates to your wallet: auto-update, undo, keep-mine |
+| `js/engine.js` | Ranking: earn rate × point value, caps, rotating quarters, activation, network acceptance, benefit tie-breaks |
+| `js/data.js` | Categories, merchant directory, OpenStreetMap tag mapping |
 | `js/location.js` | GPS + Overpass API lookup of nearby stores |
 | `js/store.js` | localStorage persistence |
 | `js/app.js` | UI |
