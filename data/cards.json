@@ -352,10 +352,27 @@
           "cats": [
             "car_rental"
           ]
+        },
+        {
+          "text": "5x points on prepaid hotels booked through AmexTravel.com or the Amex app (booking direct with the hotel earns 1x)",
+          "cats": [
+            "hotels"
+          ]
+        },
+        {
+          "text": "Complimentary Hertz Five Star status",
+          "cats": [
+            "car_rental"
+          ]
         }
       ],
-      "version": "2026-10-01",
-      "changelog": []
+      "version": "2026-10-13",
+      "changelog": [
+        {
+          "date": "2026-10-13",
+          "text": "2026 refresh: 5x on prepaid hotels booked through Amex Travel, and complimentary Hertz Five Star status. Resy dining credits now only work at restaurants marked eligible on Resy."
+        }
+      ]
     },
     {
       "presetId": "amex_bcp",

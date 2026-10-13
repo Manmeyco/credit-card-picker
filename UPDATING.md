@@ -13,7 +13,7 @@ follows this file to keep that data current. A person can follow it too.
 1. **Rotating categories.** These are for every card with a `rotating` block (Discover it, Chase
    Freedom Flex). Add the **current and next quarter** as soon as they are announced. Fix any
    quarter that is wrong.
-2. **Every card in `data/cards.json`.** Look for changes from the last ~3 months:
+2. **Every card in `data/cards.json`, one at a time.** Run at least one search per card (e.g. "<card name> changes <current year>"). A single broad search for all cards is not enough. If a search hints at a change, follow it up and confirm it, or list it as unconfirmed. Look for changes from the last ~3 months:
    - Earn rates, bonus categories, spending caps, cap periods.
    - Benefits added or removed: purchase/travel/rental-car/cell-phone protection, statement
      credits, TSA PreCheck / Global Entry credits, lounge access, reimbursements.
