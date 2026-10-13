@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { CATEGORY_BY_ID, CATEGORY_ALIASES } from '../js/data.js';
+import { CATEGORY_BY_ID, CATEGORY_ALIASES, isCategory } from '../js/data.js';
 import { normalizeCatalog } from '../js/catalog.js';
 
 const raw = JSON.parse(readFileSync(new URL('../data/cards.json', import.meta.url)));
@@ -13,7 +13,7 @@ const PERIODS = ['month', 'quarter', 'year'];
 
 const validCats = (cats, where) => {
   assert.ok(Array.isArray(cats) && cats.length, `${where}: needs categories`);
-  for (const c of cats) assert.ok(CATEGORY_BY_ID[c], `${where}: unknown category "${c}" (valid: ${Object.keys(CATEGORY_BY_ID).join(', ')}, ${Object.keys(CATEGORY_ALIASES).join(', ')})`);
+  for (const c of cats) assert.ok(isCategory(c), `${where}: unknown category "${c}" (valid: ${Object.keys(CATEGORY_BY_ID).join(', ')}, ${Object.keys(CATEGORY_ALIASES).join(', ')}, or m:<merchant id> from MERCHANTS in js/data.js)`);
 };
 
 test('catalog header', () => {
@@ -36,12 +36,19 @@ for (const c of catalog.cards) {
     const w = c.presetId;
     for (const f of ['name', 'short', 'color']) assert.ok(typeof c[f] === 'string' && c[f], `${w}: ${f}`);
     assert.ok(NETWORKS.includes(c.network), `${w}: network`);
+    assert.ok(typeof c.issuer === 'string' && c.issuer, `${w}: issuer`);
+    assert.ok(['credit', 'debit'].includes(c.type), `${w}: type must be credit or debit`);
+    if (c.annualFee != null) assert.ok(c.annualFee >= 0, `${w}: annualFee`);
+    if (c.foreignFee != null) assert.ok(c.foreignFee >= 0 && c.foreignFee < 10, `${w}: foreignFee`);
+    if (c.verified) assert.match(c.verified, DATE, `${w}: verified`);
+    if (c.discontinued) assert.match(c.discontinued, DATE, `${w}: discontinued must be a date`);
     assert.ok(raw.currencies[c.currency], `${w}: unknown currency ${c.currency}`);
     assert.ok(typeof c.base === 'number' && c.base >= 0, `${w}: base`);
     assert.match(c.version, DATE, `${w}: version`);
     c.rules.forEach((r, i) => {
       validCats(r.cats, `${w} rule ${i}`);
       assert.ok(typeof r.rate === 'number' && r.rate > 0, `${w} rule ${i}: rate`);
+      if (r.until) assert.match(r.until, DATE, `${w} rule ${i}: until`);
       if (r.cap) {
         assert.ok(r.cap.amount > 0, `${w} rule ${i}: cap amount`);
         assert.ok(PERIODS.includes(r.cap.period), `${w} rule ${i}: cap period`);

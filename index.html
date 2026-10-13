@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Card Picker</title>
+  <title>Pick-A-Card</title>
   <meta name="description" content="Which credit card should I use here?">
   <meta name="theme-color" content="#111827">
   <link rel="manifest" href="manifest.webmanifest">
@@ -13,7 +13,7 @@
 </head>
 <body>
   <header class="top">
-    <h1>Card Picker</h1>
+    <h1>Pick-A-Card</h1>
     <span class="quarter" id="quarterBadge"></span>
   </header>
 
@@ -48,6 +48,9 @@
 
     <!-- SETTINGS -->
     <section id="view-settings" class="view" hidden>
+      <h2 class="section-title">Account</h2>
+      <div id="account"></div>
+
       <h2 class="section-title">What your points are worth</h2>
       <p class="muted small">Cents per point, <em>to you</em>. Recommendations multiply each card's earn rate by this value, so restricted points (like GM Rewards) don't beat real cash back.</p>
       <div id="currencyList"></div>

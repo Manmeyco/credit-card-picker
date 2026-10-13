@@ -38,6 +38,7 @@ export function candidateRules(card, cats, date = new Date()) {
   const out = [];
   (card.rules || []).forEach((rule, i) => {
     if (!rule.cats?.some((c) => set.has(c))) return;
+    if (rule.until && date > new Date(`${rule.until}T23:59:59`)) return;
     out.push({ kind: 'rule', rate: Number(rule.rate), cap: rule.cap, key: capKey(card, rule, i), label: rule.label });
   });
   const rot = card.rotating;
@@ -65,7 +66,7 @@ export function candidateRules(card, cats, date = new Date()) {
  * Score one card for a purchase.
  * @returns {{ card, pct, rate, label, capLeft, cap, notes: string[], missed?: object, blocked?: string }}
  */
-export function scoreCard(card, cats, { currencies, log = [], amount = 0, date = new Date(), networks } = {}) {
+export function scoreCard(card, cats, { currencies, log = [], amount = 0, date = new Date(), networks, abroad = false } = {}) {
   const cpp = pointValue(card, currencies);
   const base = Number(card.base) || 0;
   const amt = Number(amount) > 0 ? Number(amount) : 0;
@@ -95,6 +96,16 @@ export function scoreCard(card, cats, { currencies, log = [], amount = 0, date =
     else if (capLeft !== null && amt > capLeft) notes.push(`Only $${fmt(capLeft)} left at the bonus rate`);
   }
 
+  if (abroad) {
+    const fee = card.foreignFee;
+    if (fee > 0) {
+      best = { ...best, pct: best.pct - fee };
+      notes.push(`${fee}% foreign transaction fee`);
+    } else if (fee == null) {
+      notes.push('Check for a foreign transaction fee');
+    }
+  }
+
   let blocked;
   if (networks && networks.length && !networks.includes(card.network)) {
     blocked = `Not accepted here (${networks.join('/')} only)`;
@@ -109,6 +120,31 @@ export function rankCards(cards, cats, opts = {}) {
   const scored = cards.filter((c) => !c.hidden).map((c) => scoreCard(c, cats, opts));
   scored.sort((a, b) => (!!a.blocked - !!b.blocked) || (b.pct - a.pct) || (b.perks.length - a.perks.length) || a.card.name.localeCompare(b.card.name));
   return scored;
+}
+
+/**
+ * Store-specific deals that beat the best card for a general category, e.g.
+ * picking "Rideshare" also surfaces "At Lyft: Sapphire Preferred 5%".
+ * `merchantById` maps merchant ids to { name, cats, networks }.
+ */
+export function merchantDeals(cards, cats, merchantById, opts = {}) {
+  const set = new Set(cats);
+  const [overall] = rankCards(cards, cats, opts);
+  if (!overall) return [];
+  const ids = new Set();
+  const collect = (list = []) => list.forEach((c) => c.startsWith('m:') && ids.add(c.slice(2)));
+  for (const card of cards) {
+    (card.rules || []).forEach((r) => collect(r.cats));
+    Object.values(card.rotating?.quarters || {}).forEach((q) => collect(q.cats));
+  }
+  const deals = [];
+  for (const id of ids) {
+    const m = merchantById[id];
+    if (!m || set.has(`m:${id}`) || !m.cats.some((c) => set.has(c))) continue;
+    const [top] = rankCards(cards, [...m.cats, 'other'], { ...opts, networks: m.networks });
+    if (top && !top.blocked && top.pct > overall.pct + 1e-9) deals.push({ merchant: m, top });
+  }
+  return deals.sort((a, b) => b.top.pct - a.top.pct).slice(0, 4);
 }
 
 // Resolve a free-text query or OSM place into categories.

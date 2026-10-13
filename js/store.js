@@ -8,6 +8,7 @@ function defaults() {
     currencies: {}, // filled from data/cards.json
     log: [],
     settings: { autoLocate: false, radius: 120 },
+    deviceId: newUid(),
   };
 }
 
@@ -24,6 +25,7 @@ export function load() {
   s.log ??= [];
   s.settings = { ...d.settings, ...(s.settings || {}) };
   s.currencies ??= {};
+  s.deviceId ??= newUid();
   return s;
 }
 

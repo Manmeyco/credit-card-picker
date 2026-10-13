@@ -9,7 +9,7 @@
 // Wallet cards added before versioning existed are treated as this version.
 export const BASELINE_VERSION = '2026-10-01';
 
-const PRESET_FIELDS = ['name', 'short', 'network', 'currency', 'color', 'base', 'rules', 'benefits'];
+const PRESET_FIELDS = ['name', 'short', 'network', 'currency', 'color', 'base', 'rules', 'benefits', 'issuer', 'type', 'annualFee', 'foreignFee', 'verified', 'discontinued'];
 
 export function snapshot(card) {
   const s = {};
@@ -65,6 +65,10 @@ export function syncWallet(wallet, catalog) {
     const preset = catalog.cards.find((p) => p.presetId === card.presetId);
     if (!preset) continue;
     mergeQuarters(card, preset);
+    // Fill in descriptive fields added to the catalog later, without touching your edits.
+    for (const f of ['issuer', 'type', 'annualFee', 'foreignFee', 'verified', 'discontinued']) {
+      if (card[f] === undefined && preset[f] !== undefined) card[f] = preset[f];
+    }
 
     const have = card.presetVersion || BASELINE_VERSION;
     if (!(preset.version > have) || card.ignoredVersion === preset.version) continue;

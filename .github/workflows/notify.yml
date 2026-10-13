@@ -1,0 +1,33 @@
+name: Email card updates
+
+# When card data changes on the live (default) branch, email subscribers.
+on:
+  push:
+    paths: [data/cards.json]
+
+permissions:
+  contents: read
+
+jobs:
+  notify:
+    if: github.ref_name == github.event.repository.default_branch
+    runs-on: ubuntu-latest
+    env:
+      FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+      GMAIL_USER: ${{ secrets.GMAIL_USER }}
+      GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+      APP_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Get the previous card data
+        run: git show "${{ github.event.before }}:data/cards.json" > /tmp/old-cards.json 2>/dev/null || echo '{"cards":[]}' > /tmp/old-cards.json
+      - name: Install email dependencies
+        if: env.FIREBASE_SERVICE_ACCOUNT != ''
+        run: npm install --no-save firebase-admin@12 nodemailer@6
+      - name: Send emails
+        run: node scripts/notify.mjs /tmp/old-cards.json data/cards.json

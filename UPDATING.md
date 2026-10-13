@@ -13,10 +13,24 @@ follows this file to keep that data current. A person can follow it too.
 1. **Rotating categories.** These are for every card with a `rotating` block (Discover it, Chase
    Freedom Flex). Add the **current and next quarter** as soon as they are announced. Fix any
    quarter that is wrong.
-2. **Every card in `data/cards.json`, one at a time.** Run at least one search per card (e.g. "<card name> changes <current year>"). A single broad search for all cards is not enough. If a search hints at a change, follow it up and confirm it, or list it as unconfirmed. Look for changes from the last ~3 months:
+2. **Verify unverified cards.** Cards without a `verified` date were added from general knowledge
+   and have not been checked against 2026 sources. Each run, verify up to 15 of them, starting
+   with the most popular. Fix anything wrong, then set `verified` to today's date. Fixing a card
+   that has never been verified does not need a changelog entry or version bump, unless an earn
+   rate or benefit actually changed recently.
+3. **New cards and discontinuations.** Search for notable credit and debit card launches and
+   discontinuations from the last ~2 months. Add notable new cards, with `verified` set. Mark
+   cards closed to new applicants with `"discontinued": "YYYY-MM-DD"`, plus a version bump and
+   changelog entry. These changes drive the "All card news" email list.
+4. **Every verified card in `data/cards.json`, one at a time.** Run at least one search per card (e.g. "<card name> changes <current year>"). A single broad search for all cards is not enough. If a search hints at a change, follow it up and confirm it, or list it as unconfirmed. Look for changes from the last ~3 months:
    - Earn rates, bonus categories, spending caps, cap periods.
    - Benefits added or removed: purchase/travel/rental-car/cell-phone protection, statement
      credits, TSA PreCheck / Global Entry credits, lounge access, reimbursements.
+   - **Merchant partnerships and side deals** that tip a purchase toward one card. Examples: Chase ×
+     Lyft (5x Sapphire Preferred), DashPass, Uber Cash, and travel-portal multipliers (Chase
+     Travel, Capital One Travel, Amex Travel). Model them as rules on `m:<merchant id>`
+     categories. Use `until` for promotions that end.
+   - Foreign transaction fees (`foreignFee`) and annual fees (`annualFee`).
    - Renames, a new issuer or network, or the card being discontinued or replaced.
    - Point values only matter for **new** currencies. Never change `cpp` on an existing currency;
      the app keeps each person's own values anyway.
@@ -30,13 +44,17 @@ anything uncertain in the run summary instead.
 
 ## How to edit `data/cards.json`
 
-- Card shape: `presetId`, `name`, `short`, `network` (visa|mastercard|amex|discover), `currency`
-  (a key of `currencies`), `color`, `base`, `rules`, optional `rotating`, `benefits`, `version`,
-  `changelog`.
-- Rule: `{ "cats": [...], "rate": n, "cap"?: { "amount", "period": month|quarter|year, "group"? }, "label"?, "choiceOptions"? }`.
+- Card shape: `presetId`, `issuer`, `type` (credit|debit), `name`, `short`, `network`
+  (visa|mastercard|amex|discover), `currency` (a key of `currencies`), `color`, `base`, `rules`,
+  optional `rotating`, `benefits`, `annualFee`, `foreignFee` (percent; omit if unknown),
+  `verified`, `discontinued`, `version`, `changelog`.
+- Rule: `{ "cats": [...], "rate": n, "cap"?: { "amount", "period": month|quarter|year, "group"? }, "label"?, "choiceOptions"?, "until"?: "YYYY-MM-DD" }`.
   `rate` is points (or %) per dollar. Rules that share a cap use the same `cap.group`.
 - Valid categories are the ids in `CATEGORIES` in `js/data.js`. `"@travel"` is shorthand for all
-  travel categories. Map issuer wording to the closest category. If no category fits, say so in
+  travel categories. `"m:<merchant id>"` targets one merchant (ids are the merchant names in
+  `MERCHANTS` in `js/data.js`, lower-cased with non-letters replaced by `_`, e.g. `m:lyft`,
+  `m:hilton`, `m:chase_travel_portal`). If a merchant is missing, add it to `MERCHANT_LIST` in
+  `js/data.js`, the one code change allowed in a data update. Map issuer wording to the closest category. If no category fits, say so in
   the summary rather than inventing one.
 - Rotating quarter: `"YYYY-Qn": { "cats": [...], "rate": 5, "rates"?: { "dining": 7 } }`.
   `rates` overrides the rate for specific categories, as with Freedom Flex dining, which stacks
@@ -55,7 +73,7 @@ anything uncertain in the run summary instead.
   4. Set the top-level `updated` to today's date.
 - If a card is discontinued, keep it, because people may still hold it, and add a changelog
   entry saying so. If it is replaced by a new product, add the new card as a separate preset.
-- Do not edit app code (`js/`, `css/`, `index.html`) during a data update.
+- Do not edit app code (`js/`, `css/`, `index.html`) during a data update, except to add merchants to `MERCHANT_LIST`.
 
 ## Before publishing
 
@@ -63,7 +81,7 @@ anything uncertain in the run summary instead.
 npm test   # must pass: validates every card, category, cap and changelog entry
 ```
 
-Commit only `data/cards.json`, with a message like `Card data update 2026-11-16: Discover Q1 2027
+Commit only `data/cards.json` (and `js/data.js` if you added merchants), with a message like `Card data update 2026-11-16: Discover Q1 2027
 categories; Amex Gold dining credit change`. Push to the repository's **default branch**. GitHub
 Pages redeploys, and phones pick up the change the next time the app opens. If nothing changed,
 do not commit.

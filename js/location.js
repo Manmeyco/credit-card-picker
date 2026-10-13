@@ -90,3 +90,12 @@ export async function nearbyPlaces(lat, lon, radius = 120) {
   places.sort((a, b) => a.distance - b.distance);
   return places.slice(0, 12);
 }
+
+// Rough bounding boxes for the US, Alaska, Hawaii and Puerto Rico.
+const US_BOXES = [
+  [24.4, 49.5, -125, -66.9],
+  [51, 72, -180, -129],
+  [18.5, 22.5, -161, -154],
+  [17.8, 18.6, -67.5, -65.2],
+];
+export const inUS = (lat, lon) => US_BOXES.some(([a, b, c, d]) => lat >= a && lat <= b && lon >= c && lon <= d);

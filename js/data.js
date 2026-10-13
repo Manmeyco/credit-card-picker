@@ -22,6 +22,7 @@ export const CATEGORIES = [
   { id: 'rideshare', label: 'Rideshare', icon: '🚕' },
   { id: 'travel_other', label: 'Other travel', icon: '🧳' },
   { id: 'department', label: 'Department store', icon: '👗' },
+  { id: 'electronics', label: 'Electronics', icon: '💻' },
   { id: 'gm', label: 'GM dealer / service', icon: '🔧' },
   { id: 'auto_service', label: 'Auto service', icon: '🛠️' },
   { id: 'ev_charging', label: 'EV charging', icon: '🔌' },
@@ -47,7 +48,7 @@ export const CATEGORY_ALIASES = {
 // Merchant directory. `match` is tested against the store name / brand from
 // OpenStreetMap and against what you type into search.
 // `networks` limits which card networks the store takes (Costco in-store = Visa).
-export const MERCHANTS = [
+const MERCHANT_LIST = [
   { name: 'Amazon', match: /\bamazon\b/i, cats: ['amazon', 'online'] },
   { name: 'Whole Foods', match: /whole\s*foods/i, cats: ['groceries', 'whole_foods'] },
   { name: 'Target', match: /^target\b|\btarget\s+(store|super)/i, cats: ['target'] },
@@ -105,12 +106,42 @@ export const MERCHANTS = [
   { name: 'United Airlines', match: /united\s*airlines/i, cats: ['airfare'] },
   { name: 'American Airlines', match: /american\s*airlines/i, cats: ['airfare'] },
   { name: 'Southwest', match: /southwest/i, cats: ['airfare'] },
-  { name: 'Marriott', match: /marriott/i, cats: ['hotels'] },
-  { name: 'Hilton', match: /hilton/i, cats: ['hotels'] },
-  { name: 'Hyatt', match: /hyatt/i, cats: ['hotels'] },
+  { name: 'Marriott', match: /marriott|courtyard|residence inn|fairfield (inn|by)|springhill|towneplace|sheraton|westin|\bw hotel|ritz-carlton|st\.? regis|aloft|four points|le m[eé]ridien|renaissance|moxy|\bac hotel|delta hotels|gaylord/i, cats: ['hotels'] },
+  { name: 'Hilton', match: /hilton|hampton inn|doubletree|embassy suites|homewood suites|home2 suites|tru by|waldorf|conrad|curio|canopy by|tapestry|motto by|spark by|lxr/i, cats: ['hotels'] },
+  { name: 'Hyatt', match: /hyatt|andaz|thompson hotel|alila|caption by|the standard/i, cats: ['hotels'] },
   { name: 'Planet Fitness', match: /planet\s*fitness/i, cats: ['fitness'] },
   { name: 'Red Cross', match: /red\s*cross/i, cats: ['charity'] },
+  { name: 'Instacart', match: /instacart/i, cats: ['groceries', 'online'] },
+  { name: 'Grubhub', match: /grubhub/i, cats: ['dining'] },
+  { name: 'Peloton', match: /peloton/i, cats: ['fitness'] },
+  { name: 'IHG', match: /\bihg\b|holiday inn|crowne plaza|intercontinental/i, cats: ['hotels'] },
+  { name: 'JetBlue', match: /jet\s*blue/i, cats: ['airfare'] },
+  { name: 'Alaska Airlines', match: /alaska\s*air/i, cats: ['airfare'] },
+  { name: 'Best Buy', match: /best\s*buy/i, cats: ['electronics'] },
+  { name: 'Apple Store', match: /^apple(\s*store)?$/i, cats: ['electronics'] },
+  { name: 'Chase Travel portal', match: /chase\s*travel/i, cats: ['travel_other', 'hotels', 'airfare', 'car_rental'] },
+  { name: 'Capital One Travel portal', match: /capital\s*one\s*travel/i, cats: ['travel_other', 'hotels', 'airfare', 'car_rental'] },
+  { name: 'Amex Travel portal', match: /amex\s*travel|american\s*express\s*travel/i, cats: ['travel_other', 'hotels', 'airfare'] },
 ];
+
+export const merchantId = (name) => name.toLowerCase().replace(/'/g, '').replace(/&/g, 'and').replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+
+// Every merchant also gets its own hidden category "m:<id>" so cards can give
+// a bonus at one specific store (e.g. Sapphire Preferred 5x at Lyft).
+export const MERCHANTS = MERCHANT_LIST.map((m) => {
+  const id = merchantId(m.name);
+  return { ...m, id, cats: [...m.cats, `m:${id}`] };
+});
+export const MERCHANT_BY_ID = Object.fromEntries(MERCHANTS.map((m) => [m.id, m]));
+
+export function isCategory(id) {
+  return !!CATEGORY_BY_ID[id] || (id.startsWith('m:') && !!MERCHANT_BY_ID[id.slice(2)]);
+}
+
+export function categoryLabel(id) {
+  if (id.startsWith('m:')) return MERCHANT_BY_ID[id.slice(2)]?.name ?? id.slice(2);
+  return CATEGORY_BY_ID[id]?.label ?? id;
+}
 
 function escapeRe(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -135,6 +166,7 @@ export const OSM_TAG_CATEGORIES = [
   ['shop', /^(car_repair|tyres|car_parts)$/, ['auto_service']],
   ['shop', /^car$/, ['auto_service']],
   ['shop', /^(mobile_phone|telecommunication)$/, ['utilities']],
+  ['shop', /^(electronics|computer|hifi|video_games)$/, ['electronics']],
   ['leisure', /^(fitness_centre|sports_centre)$/, ['fitness']],
   ['leisure', /^(bowling_alley|amusement_arcade|water_park|stadium|miniature_golf|escape_game)$/, ['entertainment']],
   ['tourism', /^(zoo|aquarium|theme_park|museum)$/, ['entertainment']],

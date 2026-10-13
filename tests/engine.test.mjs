@@ -88,16 +88,52 @@ test('Choice categories (Custom Cash) follow the pick', () => {
 });
 
 test('OSM classification', () => {
-  assert.deepEqual(classifyTags({ shop: 'supermarket', name: 'Kroger' }).cats, ['groceries']);
-  assert.deepEqual(classifyTags({ shop: 'department_store', name: 'Target', brand: 'Target' }).cats, ['target']);
-  assert.deepEqual(classifyTags({ amenity: 'restaurant', name: "Joe's Diner" }).cats, ['dining']);
-  assert.deepEqual(classifyTags({ amenity: 'fuel', brand: 'Costco', name: 'Costco Gasoline' }).cats.sort(), ['costco', 'gas']);
-  assert.deepEqual(classifyTags({ shop: 'car', name: 'Smith Chevrolet' }).cats, ['gm', 'auto_service']);
-  assert.deepEqual(classifyTags({ shop: 'wholesale', brand: 'Costco' }).cats, ['wholesale', 'costco']);
+  const plain = (cats) => cats.filter((c) => !c.startsWith('m:'));
+  assert.deepEqual(plain(classifyTags({ shop: 'supermarket', name: 'Kroger' }).cats), ['groceries']);
+  assert.deepEqual(plain(classifyTags({ shop: 'department_store', name: 'Target', brand: 'Target' }).cats), ['target']);
+  assert.deepEqual(plain(classifyTags({ amenity: 'restaurant', name: "Joe's Diner" }).cats), ['dining']);
+  assert.deepEqual(plain(classifyTags({ amenity: 'fuel', brand: 'Costco', name: 'Costco Gasoline' }).cats).sort(), ['costco', 'gas']);
+  assert.deepEqual(plain(classifyTags({ shop: 'car', name: 'Smith Chevrolet' }).cats), ['gm', 'auto_service']);
+  assert.deepEqual(plain(classifyTags({ shop: 'wholesale', brand: 'Costco' }).cats), ['wholesale', 'costco']);
 });
 
 test('A relevant benefit breaks a tie (rental car insurance)', () => {
   const [top] = rankCards([card('citi_double_cash'), card('sapphire_preferred')], ['car_rental', 'other'], opts());
   assert.equal(top.card.presetId, 'sapphire_preferred');
   assert.match(top.perks[0].text, /rental car/i);
+});
+
+test('OSM places carry their merchant id', () => {
+  assert.ok(classifyTags({ amenity: 'taxi', name: 'Lyft' }).cats.includes('m:lyft'));
+});
+
+test('Lyft: Sapphire Preferred 5x beats Prime Visa, and the rideshare tile surfaces it', async () => {
+  const { MERCHANT_BY_ID, merchantId } = await import('../js/data.js');
+  const { merchantDeals } = await import('../js/engine.js');
+  const wallet = [card('prime_visa'), card('sapphire_preferred')];
+  const lyft = MERCHANT_BY_ID.lyft;
+  const [top] = rankCards(wallet, [...lyft.cats, 'other'], opts());
+  assert.equal(top.card.presetId, 'sapphire_preferred');
+  assert.equal(top.pct, 5);
+  const [generic] = rankCards(wallet, ['rideshare', 'other'], opts());
+  assert.equal(generic.card.presetId, 'prime_visa');
+  const deals = merchantDeals(wallet, ['rideshare', 'other'], MERCHANT_BY_ID, opts());
+  assert.equal(deals[0].merchant.id, 'lyft');
+  assert.equal(deals[0].top.card.presetId, 'sapphire_preferred');
+  // The partnership ends Sept 30 2027.
+  const after = scoreCard(card('sapphire_preferred'), [...lyft.cats, 'other'], opts({ date: new Date(2027, 11, 1) }));
+  assert.equal(after.pct, 2);
+  assert.equal(merchantId("Trader Joe's"), 'trader_joes');
+});
+
+test('Foreign transaction fees count when abroad', () => {
+  const [top] = rankCards([card('citi_double_cash'), card('venture_x')], ['other'], opts({ abroad: true }));
+  assert.equal(top.card.presetId, 'venture_x');
+  const dc = scoreCard(card('citi_double_cash'), ['other'], opts({ abroad: true }));
+  assert.equal(dc.pct, -1);
+});
+
+test('Hotel sub-brands map to their chain', () => {
+  assert.ok(classifyTags({ tourism: 'hotel', name: 'Hampton Inn & Suites Dallas' }).cats.includes('m:hilton'));
+  assert.ok(classifyTags({ tourism: 'hotel', name: 'Courtyard by Marriott' }).cats.includes('m:marriott'));
 });

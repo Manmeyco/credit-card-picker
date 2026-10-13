@@ -175,3 +175,11 @@ dialog::backdrop { background: rgb(0 0 0 / 0.5); }
 .benefits { margin-top: 8px; }
 .benefits summary { cursor: pointer; color: var(--muted); }
 .benefits ul { margin: 6px 0 0; padding-left: 20px; }
+.tile-deal { grid-column: 2; font-size: 0.75rem; color: var(--accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tile { grid-template-rows: auto auto auto auto; }
+.tile-icon { grid-row: span 4; }
+.deals { margin-top: 12px; padding-top: 8px; border-top: 1px solid var(--border); }
+.filters { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0; }
+.filters input { grid-column: span 2; }
+.issuer-head { margin: 12px 0 2px; font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+.preset.added { opacity: 0.55; }

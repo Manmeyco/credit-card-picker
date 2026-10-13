@@ -1,10 +1,11 @@
 // Offline support. Network first so card-data and app updates show up as soon
 // as you open the app; falls back to the cached copy when offline.
 // Store lookups (Overpass) are cross-origin and always go to the network.
-const CACHE = 'card-picker-v2';
+const CACHE = 'pick-a-card-v3';
 const SHELL = [
   './', 'index.html', 'css/styles.css', 'manifest.webmanifest', 'data/cards.json',
   'js/app.js', 'js/data.js', 'js/engine.js', 'js/store.js', 'js/location.js', 'js/catalog.js', 'js/sync.js',
+  'js/cloud.js', 'js/sync-merge.js', 'js/firebase-config.js',
   'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png',
 ];
 

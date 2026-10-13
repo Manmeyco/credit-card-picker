@@ -1,9 +1,11 @@
-import { CATEGORIES, CATEGORY_BY_ID, MERCHANTS } from './data.js';
+import { CATEGORIES, MERCHANTS, MERCHANT_BY_ID, categoryLabel } from './data.js';
 import { loadCatalog } from './catalog.js';
 import { syncWallet, syncCurrencies, undoUpdate, acceptUpdate, declineUpdate } from './sync.js';
-import { rankCards, quarterKey, spentInPeriod, capKey, fmt, fmtPct } from './engine.js';
+import { rankCards, merchantDeals, quarterKey, spentInPeriod, capKey, fmt, fmtPct } from './engine.js';
 import { load, save, cardFromPreset, blankCard, newUid } from './store.js';
-import { getPosition, nearbyPlaces } from './location.js';
+import { getPosition, nearbyPlaces, inUS } from './location.js';
+import { cloudEnabled, initCloud, scheduleUpload, savePrefs, signInWithGoogle, sendEmailLink, signOutUser } from './cloud.js';
+import { applyRemote, combine } from './sync-merge.js';
 
 const state = load();
 let selection = null; // { title, cats, networks }
@@ -30,14 +32,18 @@ function el(tag, attrs = {}, ...kids) {
   return n;
 }
 
+let account = { user: null, prefs: { emailMine: true, emailAll: false } };
+
 function persist() {
+  state.modifiedAt = Date.now();
   save(state);
+  scheduleUpload(state, state.deviceId);
   renderAll();
 }
 
-const catLabel = (id) => CATEGORY_BY_ID[id]?.label ?? id;
+const catLabel = categoryLabel;
 const amount = () => Number($('#amount').value) || 0;
-const rankOpts = (extra = {}) => ({ currencies: state.currencies, log: state.log, amount: amount(), ...extra });
+const rankOpts = (extra = {}) => ({ currencies: state.currencies, log: state.log, amount: amount(), abroad: !!state.settings.abroad, ...extra });
 
 // ---------- Pick view ----------
 
@@ -51,12 +57,14 @@ function renderTiles() {
   for (const cat of CATEGORIES.filter((c) => !c.hidden)) {
     const [top] = rankCards(state.wallet, [cat.id, 'other'], rankOpts({ amount: 0 }));
     if (!top) continue;
+    const [deal] = merchantDeals(state.wallet, [cat.id, 'other'], MERCHANT_BY_ID, rankOpts({ amount: 0 }));
     box.append(
       el('button', { class: 'tile', onclick: () => select({ title: cat.label, cats: [cat.id] }) },
         el('span', { class: 'tile-icon' }, cat.icon),
         el('span', { class: 'tile-label' }, cat.label),
         el('span', { class: 'tile-card', style: `--card:${top.card.color}` }, top.card.short || top.card.name),
         el('span', { class: 'tile-pct' }, fmtPct(top.pct), top.missed ? ' ⚠️' : ''),
+        deal && el('span', { class: 'tile-deal' }, `${deal.merchant.name}: ${deal.top.card.short || deal.top.card.name} ${fmtPct(deal.top.pct)}`),
       ),
     );
   }
@@ -88,6 +96,17 @@ function renderResult() {
     box.append(el('p', { class: 'warn small' }, `None of your cards are accepted here (${selection.networks.join('/')} only).`));
   }
   ranked.forEach((r, i) => box.append(resultRow(r, i === 0 && !r.blocked)));
+  const deals = merchantDeals(state.wallet, cats, MERCHANT_BY_ID, rankOpts({ networks: selection.networks }));
+  if (deals.length) {
+    box.append(el('div', { class: 'deals' },
+      el('div', { class: 'small muted' }, 'Better at specific places:'),
+      deals.map((d) => el('button', { class: 'chip', onclick: () => select({ title: d.merchant.name, cats: d.merchant.cats, networks: d.merchant.networks }) },
+        `${d.merchant.name}: ${d.top.card.short || d.top.card.name} ${fmtPct(d.top.pct)}`)),
+    ));
+  }
+  box.append(el('label', { class: 'row small' },
+    el('input', { type: 'checkbox', checked: !!state.settings.abroad, onchange: (e) => { state.settings.abroad = e.target.checked; persist(); } }),
+    ' Paying abroad / in a foreign currency (counts foreign transaction fees)'));
   box.append(el('button', { class: 'link', onclick: () => { selection = null; renderResult(); } }, 'Clear'));
 }
 
@@ -157,6 +176,12 @@ async function locate() {
   status.textContent = 'Getting your location…';
   try {
     const pos = await getPosition();
+    const abroad = !inUS(pos.latitude, pos.longitude);
+    if (abroad !== !!state.settings.abroad) {
+      state.settings.abroad = abroad;
+      save(state);
+      toast(abroad ? 'Looks like you are outside the US: foreign transaction fees now count' : 'Back in the US: foreign fees no longer count');
+    }
     status.textContent = `Looking up stores near you (±${Math.round(pos.accuracy)} m)…`;
     places = await nearbyPlaces(pos.latitude, pos.longitude, Math.max(state.settings.radius, Math.min(pos.accuracy, 300)));
     if (!places.length) {
@@ -226,6 +251,8 @@ function renderWallet() {
         ),
         el('button', { class: 'link', onclick: () => editCard(card) }, 'Edit'),
       ),
+      card.discontinued && el('div', { class: 'small warn' }, 'The issuer no longer offers this card to new applicants. Existing cards keep working.'),
+      card.presetId && !card.verified && !card.customized && el('div', { class: 'small muted' }, 'Terms not yet verified against current sources. The monthly update will check them, or tap Edit to adjust.'),
       card.pendingVersion && el('div', { class: 'small update' },
         'An update is available for this card, but you have edited it. ',
         el('button', { class: 'link', onclick: () => { acceptUpdate(card, catalog); persist(); } }, 'Use the update'),
@@ -274,27 +301,72 @@ function openDialog(build, onSave) {
   body.replaceChildren(...build().flat(Infinity));
   dlg.onclose = () => { if (dlg.returnValue === 'save') onSave?.(); };
   dlg.returnValue = '';
+  dlg.oncancel = null;
   dlg.showModal();
 }
 
 function addCardDialog() {
-  const owned = new Set(state.wallet.map((c) => c.presetId));
-  openDialog(() => [
-    el('h2', {}, 'Add a card'),
-    el('div', { class: 'preset-list' },
-      catalog.cards.filter((p) => !owned.has(p.presetId)).map((p) =>
-        el('button', { type: 'button', class: 'preset', style: `--card:${p.color}`, onclick: () => {
+  const owned = () => new Set(state.wallet.map((c) => c.presetId));
+  const issuers = [...new Set(catalog.cards.map((c) => c.issuer))].sort((a, b) => a.localeCompare(b));
+  const filters = { issuer: '', type: '', q: '' };
+  const list = el('div', { class: 'preset-list' });
+
+  const meta = (p) => [
+    p.type === 'debit' ? 'Debit' : null,
+    p.annualFee ? `$${p.annualFee}/yr` : 'No annual fee',
+    p.network[0].toUpperCase() + p.network.slice(1),
+    p.discontinued ? 'No longer offered' : null,
+    p.verified ? null : 'terms not yet verified',
+  ].filter(Boolean).join(' · ');
+
+  const renderList = () => {
+    const have = owned();
+    const q = filters.q.trim().toLowerCase();
+    const shown = catalog.cards.filter((p) =>
+      (!filters.issuer || p.issuer === filters.issuer)
+      && (!filters.type || p.type === filters.type)
+      && (!q || `${p.name} ${p.issuer} ${p.short}`.toLowerCase().includes(q)));
+    list.replaceChildren();
+    if (!shown.length) list.append(el('p', { class: 'muted small' }, 'No match. Try "Custom card" below to add it yourself.'));
+    for (const issuer of issuers) {
+      const group = shown.filter((p) => p.issuer === issuer).sort((a, b) => a.name.localeCompare(b.name));
+      if (!group.length) continue;
+      list.append(el('div', { class: 'issuer-head' }, issuer));
+      for (const p of group) {
+        const added = have.has(p.presetId);
+        list.append(el('button', { type: 'button', class: `preset${added ? ' added' : ''}`, disabled: added, style: `--card:${p.color}`, onclick: () => {
           state.wallet.push(cardFromPreset(p));
-          $('#dialog').close();
           persist();
-          toast(`Added ${p.name}. Check its numbers with Edit.`);
-        } }, el('span', { class: 'swatch' }), p.name)),
+          renderList();
+          toast(`Added ${p.name}`);
+        } },
+          el('span', { class: 'swatch' }),
+          el('span', { class: 'grow' }, p.name, el('div', { class: 'small muted' }, meta(p))),
+          el('span', { class: 'small' }, added ? '✓ Added' : '＋'),
+        ));
+      }
+    }
+  };
+
+  openDialog(() => [
+    el('h2', {}, 'Add cards'),
+    el('div', { class: 'filters' },
+      el('input', { type: 'search', placeholder: 'Search cards…', onkeydown: (e) => { if (e.key === 'Enter') e.preventDefault(); }, oninput: (e) => { filters.q = e.target.value; renderList(); } }),
+      el('select', { onchange: (e) => { filters.issuer = e.target.value; renderList(); } },
+        el('option', { value: '' }, 'All issuers'),
+        issuers.map((i) => el('option', { value: i }, `${i} (${catalog.cards.filter((c) => c.issuer === i).length})`))),
+      el('select', { onchange: (e) => { filters.type = e.target.value; renderList(); } },
+        el('option', { value: '' }, 'Credit & debit'),
+        el('option', { value: 'credit' }, 'Credit cards'),
+        el('option', { value: 'debit' }, 'Debit cards')),
     ),
-    el('div', { class: 'btn-row' },
+    list,
+    el('div', { class: 'btn-row sticky' },
       el('button', { type: 'button', onclick: () => { $('#dialog').close(); editCard(blankCard(), true); } }, 'Custom card…'),
-      el('button', { value: 'cancel' }, 'Close'),
+      el('button', { value: 'cancel', class: 'primary' }, 'Done'),
     ),
   ]);
+  renderList();
 }
 
 function catPicker(selected, onChange) {
@@ -472,7 +544,105 @@ async function refreshCatalog({ manual = false } = {}) {
   }
 }
 
+// ---------- Account ----------
+
+function renderAccount() {
+  const box = $('#account');
+  box.replaceChildren();
+  if (!cloudEnabled) {
+    box.append(el('p', { class: 'muted small' }, 'Accounts are not switched on for this copy of the app yet, so your cards are saved on this device only. Use Export/Import below to move them.'));
+    return;
+  }
+  const u = account.user;
+  if (!u) {
+    box.append(
+      el('p', { class: 'muted small' }, 'Sign in to keep your cards in sync on every device and browser, and to get email updates.'),
+      el('div', { class: 'btn-row' },
+        el('button', { class: 'primary', onclick: () => signInWithGoogle().catch((e) => alert(`Sign-in failed: ${e.message}`)) }, 'Sign in with Google'),
+        el('button', { onclick: async () => {
+          const email = prompt('Your email address — we will send you a sign-in link');
+          if (!email) return;
+          try { await sendEmailLink(email.trim()); alert('Check your email for the sign-in link. Open it on this device.'); } catch (e) { alert(`Could not send the link: ${e.message}`); }
+        } }, 'Email me a sign-in link'),
+      ),
+    );
+    return;
+  }
+  const pref = (key, label) => el('label', { class: 'row' },
+    el('input', { type: 'checkbox', checked: !!account.prefs[key], onchange: async (e) => {
+      account.prefs = { ...account.prefs, [key]: e.target.checked };
+      try { await savePrefs(state, state.deviceId, account.prefs); toast('Email preferences saved'); } catch (err) { alert(`Could not save: ${err.message}`); }
+    } }), ` ${label}`);
+  box.append(
+    el('p', { class: 'small' }, `Signed in as ${u.email || u.displayName || 'you'}. Your cards sync across devices.`),
+    el('h3', {}, 'Email updates'),
+    pref('emailMine', 'When cards in my wallet change (new rotating categories, earn rates, benefits)'),
+    pref('emailAll', 'All card news: any card changing, new cards, and discontinued cards'),
+    el('button', { onclick: () => signOutUser() }, 'Sign out'),
+  );
+}
+
+function chooseSyncSource(localCount, remoteCount) {
+  return new Promise((resolve) => {
+    const pick = (v) => { $('#dialog').close(); resolve(v); };
+    openDialog(() => [
+      el('h2', {}, 'Which cards should we keep?'),
+      el('p', {}, `This device has ${localCount} card(s). Your account has ${remoteCount} card(s).`),
+      el('div', { class: 'preset-list' },
+        el('button', { type: 'button', class: 'primary', onclick: () => pick('combine') }, 'Combine both (recommended)'),
+        el('button', { type: 'button', onclick: () => pick('remote') }, "Use my account's cards"),
+        el('button', { type: 'button', onclick: () => pick('local') }, "Use this device's cards"),
+      ),
+    ]);
+    $('#dialog').oncancel = (e) => e.preventDefault();
+  });
+}
+
+async function startCloud() {
+  if (!cloudEnabled) return;
+  try {
+    await initCloud({
+      deviceId: state.deviceId,
+      getState: () => state,
+      onUser: (u) => {
+        account.user = u;
+        renderAccount();
+      },
+      onFirstSync: async (remote, prefs) => {
+        if (prefs) account.prefs = { ...account.prefs, ...prefs };
+        const uid = account.user.uid;
+        let choice = 'local';
+        if (remote) {
+          const localN = state.wallet.length;
+          const remoteN = remote.wallet?.length || 0;
+          if (!localN) choice = 'remote';
+          else if (!remoteN) choice = 'local';
+          else if (state.syncedUid === uid) choice = (remote.modifiedAt || 0) > (state.modifiedAt || 0) ? 'remote' : 'local';
+          else choice = await chooseSyncSource(localN, remoteN);
+        }
+        if (choice === 'remote') applyRemote(state, remote);
+        if (choice === 'combine') { applyRemote(state, combine(state, remote)); choice = 'local'; }
+        state.syncedUid = uid;
+        save(state);
+        renderAll();
+        if (!prefs) await savePrefs(state, state.deviceId, account.prefs).catch(() => {});
+        return choice;
+      },
+      onRemote: (remote, prefs) => {
+        if (prefs) account.prefs = { ...account.prefs, ...prefs };
+        applyRemote(state, remote);
+        save(state);
+        renderAll();
+      },
+    });
+  } catch (e) {
+    console.warn('Accounts unavailable', e);
+    $('#account').replaceChildren(el('p', { class: 'muted small' }, 'Could not reach the sign-in service (offline?). Your cards are still saved on this device.'));
+  }
+}
+
 function renderAll() {
+  renderAccount();
   $('#quarterBadge').textContent = quarterKey();
   renderNotices();
   renderTiles();
@@ -503,7 +673,7 @@ $('#autoLocate').addEventListener('change', (e) => { state.settings.autoLocate =
 $('#radius').addEventListener('change', (e) => { state.settings.radius = Number(e.target.value) || 120; save(state); });
 $('#exportBtn').addEventListener('click', () => {
   const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
-  const a = el('a', { href: URL.createObjectURL(blob), download: `card-picker-backup-${new Date().toISOString().slice(0, 10)}.json` });
+  const a = el('a', { href: URL.createObjectURL(blob), download: `pick-a-card-backup-${new Date().toISOString().slice(0, 10)}.json` });
   a.click();
 });
 $('#importBtn').addEventListener('click', () => $('#importFile').click());
@@ -512,7 +682,7 @@ $('#importFile').addEventListener('change', async (e) => {
   if (!f) return;
   try {
     const data = JSON.parse(await f.text());
-    if (!Array.isArray(data.wallet)) throw new Error('Not a Card Picker backup');
+    if (!Array.isArray(data.wallet)) throw new Error('Not a Pick-A-Card backup');
     if (!confirm('Replace everything on this phone with the backup?')) return;
     Object.assign(state, data);
     persist();
@@ -529,6 +699,7 @@ document.addEventListener('visibilitychange', () => {
 
 renderAll();
 await refreshCatalog();
+startCloud();
 if (!state.wallet.length) showView('wallet');
 const params = new URLSearchParams(location.search);
 if (params.get('view')) showView(params.get('view'));

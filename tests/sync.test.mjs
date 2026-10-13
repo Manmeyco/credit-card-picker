@@ -87,3 +87,10 @@ test('currencies: new ones added, your values kept', () => {
   assert.equal(mine.gm.note, 'n');
   assert.equal(mine.bilt.cpp, 1.5);
 });
+
+test('older wallet cards get new descriptive fields filled in', () => {
+  const c = cardFromPreset(v1);
+  syncWallet([c], { cards: [{ ...v1, issuer: 'Chase', foreignFee: 0, type: 'credit' }] });
+  assert.equal(c.issuer, 'Chase');
+  assert.equal(c.foreignFee, 0);
+});

@@ -1,6 +1,6 @@
 {
-  "name": "Card Picker",
-  "short_name": "Card Picker",
+  "name": "Pick-A-Card",
+  "short_name": "Pick-A-Card",
   "description": "Which credit card should I use here?",
   "start_url": "./",
   "scope": "./",
