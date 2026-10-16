@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "updated": "2026-10-13",
+  "updated": "2026-10-16",
   "currencies": {
     "cash": {
       "name": "Cash back",
@@ -178,12 +178,6 @@
       },
       "benefits": [
         {
-          "text": "Cell phone protection (up to $800/claim) when you pay your phone bill with this card",
-          "cats": [
-            "utilities"
-          ]
-        },
-        {
           "text": "Purchase protection & extended warranty"
         },
         {
@@ -200,17 +194,21 @@
           ]
         }
       ],
-      "version": "2026-10-13",
+      "version": "2026-10-16",
       "changelog": [
         {
           "date": "2026-10-13",
           "text": "Added Lyft bonus (2x through Sept 2027) and 5x on Chase Travel bookings."
+        },
+        {
+          "date": "2026-10-16",
+          "text": "Since Sept 20, 2026: no more foreign transaction fee, but cell phone protection has been removed."
         }
       ],
       "issuer": "Chase",
       "type": "credit",
       "annualFee": 0,
-      "foreignFee": 3,
+      "foreignFee": 0,
       "verified": "2026-10-13"
     },
     {
@@ -470,13 +468,30 @@
             "m:doordash",
             "dining"
           ]
+        },
+        {
+          "text": "Up to $500/yr in hotel credits for The Edit (up to $250 per prepaid 2+ night booking)",
+          "cats": [
+            "hotels"
+          ]
+        },
+        {
+          "text": "One-time 2026 credit: up to $250 on prepaid Chase Travel stays with select brands (IHG, Omni, Virgin, Montage and more)",
+          "cats": [
+            "hotels",
+            "m:chase_travel_portal"
+          ]
         }
       ],
-      "version": "2026-10-13",
+      "version": "2026-10-16",
       "changelog": [
         {
           "date": "2026-10-13",
           "text": "Added Lyft bonus (5x plus $10/month credit) and 8x on Chase Travel bookings."
+        },
+        {
+          "date": "2026-10-16",
+          "text": "Added the 2026 hotel credits: The Edit (up to $250 per stay, $500/yr) and a one-time $250 Chase Travel hotel credit."
         }
       ],
       "issuer": "Chase",
@@ -620,7 +635,8 @@
       "issuer": "American Express",
       "type": "credit",
       "annualFee": 95,
-      "foreignFee": 2.7
+      "foreignFee": 2.7,
+      "verified": "2026-10-16"
     },
     {
       "presetId": "amex_bce",
@@ -679,7 +695,8 @@
       "issuer": "American Express",
       "type": "credit",
       "annualFee": 0,
-      "foreignFee": 2.7
+      "foreignFee": 2.7,
+      "verified": "2026-10-16"
     },
     {
       "presetId": "citi_double_cash",
@@ -696,7 +713,8 @@
       "issuer": "Citi",
       "type": "credit",
       "annualFee": 0,
-      "foreignFee": 3
+      "foreignFee": 3,
+      "verified": "2026-10-16"
     },
     {
       "presetId": "citi_custom_cash",
@@ -733,12 +751,19 @@
         }
       ],
       "benefits": [],
-      "version": "2026-10-01",
-      "changelog": [],
+      "version": "2026-10-16",
+      "changelog": [
+        {
+          "date": "2026-10-16",
+          "text": "Citi stopped accepting new applications on May 28, 2026. Existing cards keep earning as before."
+        }
+      ],
       "issuer": "Citi",
       "type": "credit",
       "annualFee": 0,
-      "foreignFee": 3
+      "foreignFee": 3,
+      "discontinued": "2026-05-28",
+      "verified": "2026-10-16"
     },
     {
       "presetId": "savor",
@@ -808,7 +833,8 @@
       "issuer": "Capital One",
       "type": "credit",
       "annualFee": 0,
-      "foreignFee": 0
+      "foreignFee": 0,
+      "verified": "2026-10-16"
     },
     {
       "presetId": "venture_x",
@@ -824,7 +850,7 @@
             "m:capital_one_travel_portal"
           ],
           "rate": 10,
-          "label": "Hotels & rental cars via Capital One Travel"
+          "label": "Capital One Travel (10x hotels & rental cars, 5x flights)"
         }
       ],
       "benefits": [
@@ -851,9 +877,20 @@
           "cats": [
             "utilities"
           ]
+        },
+        {
+          "text": "$300 yearly credit for bookings through Capital One Travel",
+          "cats": [
+            "m:capital_one_travel_portal",
+            "hotels",
+            "airfare"
+          ]
+        },
+        {
+          "text": "10,000 bonus miles every account anniversary"
         }
       ],
-      "version": "2026-10-13",
+      "version": "2026-10-16",
       "changelog": [
         {
           "date": "2026-10-13",
@@ -863,7 +900,8 @@
       "issuer": "Capital One",
       "type": "credit",
       "annualFee": 395,
-      "foreignFee": 0
+      "foreignFee": 0,
+      "verified": "2026-10-16"
     },
     {
       "presetId": "wf_active_cash",
@@ -887,7 +925,8 @@
       "issuer": "Wells Fargo",
       "type": "credit",
       "annualFee": 0,
-      "foreignFee": 3
+      "foreignFee": 3,
+      "verified": "2026-10-16"
     },
     {
       "presetId": "wf_autograph",
@@ -923,7 +962,8 @@
       "issuer": "Wells Fargo",
       "type": "credit",
       "annualFee": 0,
-      "foreignFee": 0
+      "foreignFee": 0,
+      "verified": "2026-10-16"
     },
     {
       "presetId": "bofa_customized",
@@ -973,7 +1013,8 @@
       "issuer": "Bank of America",
       "type": "credit",
       "annualFee": 0,
-      "foreignFee": 3
+      "foreignFee": 3,
+      "verified": "2026-10-16"
     },
     {
       "presetId": "usbank_cash_plus",
@@ -994,7 +1035,7 @@
             "period": "quarter",
             "group": "five"
           },
-          "label": "Choice #1",
+          "label": "5% choice #1 (fast food, utilities, phone, streaming, gyms, movie theaters, ground transit…)",
           "choiceOptions": [
             "utilities",
             "fitness",
@@ -1002,7 +1043,8 @@
             "home_improvement",
             "entertainment",
             "streaming",
-            "transit"
+            "transit",
+            "dining"
           ]
         },
         {
@@ -1015,7 +1057,7 @@
             "period": "quarter",
             "group": "five"
           },
-          "label": "Choice #2",
+          "label": "5% choice #2 (fast food, utilities, phone, streaming, gyms, movie theaters, ground transit…)",
           "choiceOptions": [
             "utilities",
             "fitness",
@@ -1023,7 +1065,8 @@
             "home_improvement",
             "entertainment",
             "streaming",
-            "transit"
+            "transit",
+            "dining"
           ]
         },
         {
@@ -1041,12 +1084,13 @@
         }
       ],
       "benefits": [],
-      "version": "2026-10-01",
+      "version": "2026-10-16",
       "changelog": [],
       "issuer": "U.S. Bank",
       "type": "credit",
       "annualFee": 0,
-      "foreignFee": 3
+      "foreignFee": 3,
+      "verified": "2026-10-16"
     },
     {
       "presetId": "costco_citi",
@@ -1059,13 +1103,26 @@
       "rules": [
         {
           "cats": [
+            "m:costco_gas"
+          ],
+          "rate": 5,
+          "cap": {
+            "amount": 7000,
+            "period": "year",
+            "group": "gas"
+          },
+          "label": "Gas at Costco"
+        },
+        {
+          "cats": [
             "gas",
             "ev_charging"
           ],
           "rate": 4,
           "cap": {
             "amount": 7000,
-            "period": "year"
+            "period": "year",
+            "group": "gas"
           }
         },
         {
@@ -1083,12 +1140,18 @@
         }
       ],
       "benefits": [],
-      "version": "2026-10-01",
-      "changelog": [],
+      "version": "2026-10-16",
+      "changelog": [
+        {
+          "date": "2026-10-16",
+          "text": "Gas at Costco earns 5% (other gas and EV charging stay at 4%), sharing the $7,000 yearly cap."
+        }
+      ],
       "issuer": "Citi",
       "type": "credit",
       "annualFee": 0,
-      "foreignFee": 0
+      "foreignFee": 0,
+      "verified": "2026-10-16"
     },
     {
       "presetId": "prime_visa",
@@ -1134,7 +1197,8 @@
       "issuer": "Chase",
       "type": "credit",
       "annualFee": 0,
-      "foreignFee": 0
+      "foreignFee": 0,
+      "verified": "2026-10-16"
     },
     {
       "presetId": "target_circle",
@@ -1715,10 +1779,29 @@
           "cats": [
             "hotels"
           ]
+        },
+        {
+          "text": "Up to $300 twice a year on prepaid Fine Hotels + Resorts / The Hotel Collection stays",
+          "cats": [
+            "hotels",
+            "m:amex_travel_portal"
+          ]
+        },
+        {
+          "text": "Up to $200/yr airline incidental fee credit (pick one airline)",
+          "cats": [
+            "airfare"
+          ]
+        },
+        {
+          "text": "Up to $400/yr Resy dining credit at eligible restaurants",
+          "cats": [
+            "dining"
+          ]
         }
       ],
       "changelog": [],
-      "version": "2026-10-13",
+      "version": "2026-10-16",
       "presetId": "amex_platinum",
       "issuer": "American Express",
       "name": "Amex Platinum",
@@ -1728,7 +1811,8 @@
       "color": "#8e9aa6",
       "base": 1,
       "annualFee": 895,
-      "foreignFee": 0
+      "foreignFee": 0,
+      "verified": "2026-10-16"
     },
     {
       "type": "credit",
@@ -1967,7 +2051,8 @@
       "color": "#1b2a4a",
       "base": 3,
       "annualFee": 550,
-      "foreignFee": 0
+      "foreignFee": 0,
+      "verified": "2026-10-16"
     },
     {
       "type": "credit",
@@ -2511,7 +2596,8 @@
       "color": "#3d0f0f",
       "base": 1,
       "annualFee": 95,
-      "foreignFee": 0
+      "foreignFee": 0,
+      "verified": "2026-10-16"
     },
     {
       "type": "credit",
