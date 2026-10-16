@@ -1,5 +1,5 @@
 // "Where am I?" — phone GPS + OpenStreetMap (Overpass API, free, no key).
-import { MERCHANTS, OSM_TAG_CATEGORIES } from './data.js';
+import { MERCHANTS, MERCHANT_BY_ID, OSM_TAG_CATEGORIES } from './data.js';
 import { merchantFor } from './engine.js';
 
 const ENDPOINTS = [
@@ -54,7 +54,9 @@ function distanceM(lat1, lon1, lat2, lon2) {
 
 export function classifyTags(tags) {
   const label = tags.name || tags.brand || tags.operator || '';
-  const merchant = merchantFor(tags.brand, MERCHANTS) || merchantFor(tags.name, MERCHANTS);
+  let merchant = merchantFor(tags.brand, MERCHANTS) || merchantFor(tags.name, MERCHANTS);
+  // A store brand's gas station (e.g. Costco) maps to its gas merchant (Costco Gas).
+  if (merchant && tags.amenity === 'fuel' && MERCHANT_BY_ID[`${merchant.id}_gas`]) merchant = MERCHANT_BY_ID[`${merchant.id}_gas`];
   let cats = [];
   for (const [k, re, c] of OSM_TAG_CATEGORIES) {
     if (tags[k] && re.test(tags[k])) {

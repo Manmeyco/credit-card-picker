@@ -16,13 +16,13 @@ export function diffCatalogs(oldRaw, newRaw, labelFor = (c) => c) {
       events.push({ ...base, kind: 'new', text: `Now in Pick-A-Card: ${card.name} (${card.issuer || 'new card'}).` });
       continue;
     }
-    if (card.discontinued && !old.discontinued) {
+    const seen = new Set((old.changelog || []).map((e) => `${e.date}|${e.text}`));
+    const fresh = (card.changelog || []).filter((e) => !seen.has(`${e.date}|${e.text}`));
+    const newlyDiscontinued = card.discontinued && !old.discontinued;
+    if (newlyDiscontinued && !fresh.length) {
       events.push({ ...base, kind: 'discontinued', text: `${card.name} is no longer offered to new applicants. Existing cards keep working.` });
     }
-    const seen = new Set((old.changelog || []).map((e) => `${e.date}|${e.text}`));
-    for (const e of card.changelog || []) {
-      if (!seen.has(`${e.date}|${e.text}`)) events.push({ ...base, kind: 'changed', text: e.text });
-    }
+    for (const e of fresh) events.push({ ...base, kind: newlyDiscontinued ? 'discontinued' : 'changed', text: e.text });
     for (const [q, def] of Object.entries(card.rotating?.quarters || {})) {
       const prev = old.rotating?.quarters?.[q];
       if (prev && JSON.stringify(prev.cats) === JSON.stringify(def.cats) && prev.rate === def.rate) continue;

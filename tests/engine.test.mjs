@@ -137,3 +137,11 @@ test('Hotel sub-brands map to their chain', () => {
   assert.ok(classifyTags({ tourism: 'hotel', name: 'Hampton Inn & Suites Dallas' }).cats.includes('m:hilton'));
   assert.ok(classifyTags({ tourism: 'hotel', name: 'Courtyard by Marriott' }).cats.includes('m:marriott'));
 });
+
+test('Costco gas stations earn the Costco Visa 5% rate', () => {
+  const place = classifyTags({ amenity: 'fuel', brand: 'Costco' });
+  assert.ok(place.cats.includes('m:costco_gas'));
+  const s = scoreCard(card('costco_citi'), [...place.cats, 'other'], opts());
+  assert.equal(s.pct, 5);
+  assert.equal(scoreCard(card('costco_citi'), ['gas', 'other'], opts()).pct, 4);
+});

@@ -15,9 +15,10 @@ follows this file to keep that data current. A person can follow it too.
    quarter that is wrong.
 2. **Verify unverified cards.** Cards without a `verified` date were added from general knowledge
    and have not been checked against 2026 sources. Each run, verify up to 15 of them, starting
-   with the most popular. Fix anything wrong, then set `verified` to today's date. Fixing a card
-   that has never been verified does not need a changelog entry or version bump, unless an earn
-   rate or benefit actually changed recently.
+   with the most popular. Fix anything wrong, then set `verified` to today's date. If you fixed
+   anything, bump `version` so wallets pick up the fix. Add a changelog entry only if the terms
+   actually changed recently; a correction alone shows people a quiet "details refreshed" notice
+   and sends no email.
 3. **New cards and discontinuations.** Search for notable credit and debit card launches and
    discontinuations from the last ~2 months. Add notable new cards, with `verified` set. Mark
    cards closed to new applicants with `"discontinued": "YYYY-MM-DD"`, plus a version bump and
