@@ -2,25 +2,40 @@
 import { MERCHANTS, MERCHANT_BY_ID, OSM_TAG_CATEGORIES } from './data.js';
 import { merchantFor } from './engine.js';
 
+// Public Overpass servers. The one that last worked is tried first.
 const ENDPOINTS = [
   'https://overpass-api.de/api/interpreter',
+  'https://overpass.private.coffee/api/interpreter',
   'https://overpass.kumi.systems/api/interpreter',
 ];
+const GOOD_ENDPOINT_KEY = 'pick-a-card:overpass';
+const PLACES_CACHE_KEY = 'pick-a-card:places';
+const REQUEST_TIMEOUT_MS = 9000;
 
-export function getPosition() {
+function tryPosition(options) {
   return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) return reject(new Error('This browser has no location support.'));
-    navigator.geolocation.getCurrentPosition(
-      (p) => resolve(p.coords),
-      (e) => reject(new Error(e.code === 1 ? 'Location permission was denied.' : 'Could not get your location.')),
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 },
-    );
+    navigator.geolocation.getCurrentPosition((p) => resolve(p.coords), reject, options);
   });
+}
+
+export async function getPosition() {
+  if (!navigator.geolocation) throw new Error('This browser has no location support.');
+  try {
+    return await tryPosition({ enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 });
+  } catch (e) {
+    if (e.code === 1) throw new Error('Location permission is off for this app. Turn it on in your browser settings.');
+    // Indoors GPS often times out; accept a rougher or recent fix instead.
+    try {
+      return await tryPosition({ enableHighAccuracy: false, timeout: 10000, maximumAge: 5 * 60 * 1000 });
+    } catch {
+      throw new Error('Could not get your location (weak GPS indoors?).');
+    }
+  }
 }
 
 function overpassQuery(lat, lon, r) {
   const a = `(around:${r},${lat},${lon})`;
-  return `[out:json][timeout:15];(
+  return `[out:json][timeout:10];(
 nwr${a}[shop][name];
 nwr${a}[amenity~"^(restaurant|fast_food|cafe|bar|pub|food_court|ice_cream|fuel|charging_station|pharmacy|cinema|theatre|car_rental|nightclub)$"];
 nwr${a}[leisure~"^(fitness_centre|sports_centre|bowling_alley|amusement_arcade|water_park|stadium|miniature_golf)$"][name];
@@ -29,18 +44,59 @@ nwr${a}[aeroway=terminal];
 );out center tags 60;`;
 }
 
+function storageGet(key) {
+  try { return JSON.parse(localStorage.getItem(key) || 'null'); } catch { return null; }
+}
+function storageSet(key, value) {
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* storage full or blocked */ }
+}
+
+export class LookupError extends Error {}
+
 async function fetchOverpass(query) {
-  let lastErr;
-  for (const url of ENDPOINTS) {
+  const preferred = storageGet(GOOD_ENDPOINT_KEY);
+  const order = [...ENDPOINTS].sort((a, b) => (b === preferred) - (a === preferred));
+  for (const url of order) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), REQUEST_TIMEOUT_MS);
     try {
-      const res = await fetch(url, { method: 'POST', body: new URLSearchParams({ data: query }) });
-      if (!res.ok) throw new Error(`Map lookup failed (${res.status})`);
-      return await res.json();
-    } catch (e) {
-      lastErr = e;
+      const res = await fetch(url, { method: 'POST', body: new URLSearchParams({ data: query }), signal: ctrl.signal });
+      if (!res.ok) continue;
+      const json = await res.json();
+      storageSet(GOOD_ENDPOINT_KEY, url);
+      return json;
+    } catch {
+      // Network error, timeout, or a busy server without CORS headers: try the next one.
+    } finally {
+      clearTimeout(timer);
     }
   }
-  throw lastErr;
+  throw new LookupError(navigator.onLine === false
+    ? "You're offline, so the store lookup can't run."
+    : "Couldn't reach the map service. Signal inside stores is often weak.");
+}
+
+// ---- Remembered lookups, so places you've been work without signal ----
+
+export function cachedPlacesNear(lat, lon, within = 150) {
+  const cache = storageGet(PLACES_CACHE_KEY) || [];
+  let best = null;
+  for (const entry of cache) {
+    const d = distanceM(lat, lon, entry.lat, entry.lon);
+    if (d <= within && (!best || d < best.d)) best = { d, entry };
+  }
+  if (!best) return null;
+  // Re-measure distances from where you are now.
+  return best.entry.places
+    .map((p) => ({ ...p, distance: Math.round(distanceM(lat, lon, p.lat, p.lon)) }))
+    .sort((a, b) => a.distance - b.distance);
+}
+
+function rememberPlaces(lat, lon, places) {
+  if (!places.length) return;
+  const cache = (storageGet(PLACES_CACHE_KEY) || []).filter((e) => distanceM(lat, lon, e.lat, e.lon) > 60);
+  cache.unshift({ lat, lon, ts: Date.now(), places });
+  storageSet(PLACES_CACHE_KEY, cache.slice(0, 60));
 }
 
 function distanceM(lat1, lon1, lat2, lon2) {
@@ -87,10 +143,12 @@ export async function nearbyPlaces(lat, lon, radius = 120) {
     const dedupe = `${p.name}|${p.cats.join()}`;
     if (seen.has(dedupe)) continue;
     seen.add(dedupe);
-    places.push({ ...p, distance: Math.round(distanceM(lat, lon, plat, plon)) });
+    places.push({ ...p, lat: plat, lon: plon, distance: Math.round(distanceM(lat, lon, plat, plon)) });
   }
   places.sort((a, b) => a.distance - b.distance);
-  return places.slice(0, 12);
+  const top = places.slice(0, 12);
+  rememberPlaces(lat, lon, top);
+  return top;
 }
 
 // Rough bounding boxes for the US, Alaska, Hawaii and Puerto Rico.

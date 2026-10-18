@@ -3,7 +3,7 @@ import { loadCatalog } from './catalog.js';
 import { syncWallet, syncCurrencies, undoUpdate, acceptUpdate, declineUpdate } from './sync.js';
 import { rankCards, merchantDeals, quarterKey, spentInPeriod, capKey, fmt, fmtPct } from './engine.js';
 import { load, save, cardFromPreset, blankCard, newUid } from './store.js';
-import { getPosition, nearbyPlaces, inUS } from './location.js';
+import { getPosition, nearbyPlaces, cachedPlacesNear, inUS } from './location.js';
 import { cloudEnabled, initCloud, scheduleUpload, savePrefs, signInWithGoogle, sendEmailLink, signOutUser } from './cloud.js';
 import { applyRemote, combine } from './sync-merge.js';
 
@@ -169,10 +169,35 @@ function renderSuggestions() {
   hits.slice(0, 8).forEach((h) => box.append(el('button', { class: 'chip', onclick: () => { $('#search').value = ''; box.replaceChildren(); select(h); } }, h.title)));
 }
 
-async function locate() {
-  const status = $('#locateStatus');
+function showPlaces(list) {
   const box = $('#places');
   box.replaceChildren();
+  list.forEach((p, i) => box.append(
+    el('button', { class: `chip${i === 0 ? ' on' : ''}`, onclick: (e) => {
+      box.querySelectorAll('.chip').forEach((b) => b.classList.remove('on'));
+      e.currentTarget.classList.add('on');
+      select({ title: p.name, cats: p.cats, networks: p.networks });
+    } }, `${p.name} · ${p.distance}m`),
+  ));
+  const p = list[0];
+  select({ title: p.name, cats: p.cats, networks: p.networks });
+}
+
+function locateFailed(message) {
+  const status = $('#locateStatus');
+  status.replaceChildren(
+    el('span', { class: 'warn' }, message), ' ',
+    el('button', { class: 'link', onclick: locate }, 'Try again'),
+    el('div', {}, 'Or type the store name in the search box, or tap a category below.'),
+  );
+}
+
+let locating = false;
+async function locate() {
+  if (locating) return;
+  locating = true;
+  const status = $('#locateStatus');
+  $('#places').replaceChildren();
   status.textContent = 'Getting your location…';
   try {
     const pos = await getPosition();
@@ -182,24 +207,37 @@ async function locate() {
       save(state);
       toast(abroad ? 'Looks like you are outside the US: foreign transaction fees now count' : 'Back in the US: foreign fees no longer count');
     }
-    status.textContent = `Looking up stores near you (±${Math.round(pos.accuracy)} m)…`;
-    places = await nearbyPlaces(pos.latitude, pos.longitude, Math.max(state.settings.radius, Math.min(pos.accuracy, 300)));
+    const radius = Math.max(state.settings.radius, Math.min(pos.accuracy, 300));
+    // Show stores remembered from an earlier visit right away, then refresh.
+    const saved = cachedPlacesNear(pos.latitude, pos.longitude, Math.max(150, Math.min(pos.accuracy, 300)));
+    if (saved?.length) {
+      showPlaces(saved);
+      status.textContent = 'Stores from your last visit here. Checking for updates…';
+    } else {
+      status.textContent = `Looking up stores near you (±${Math.round(pos.accuracy)} m)…`;
+    }
+    try {
+      places = await nearbyPlaces(pos.latitude, pos.longitude, radius);
+    } catch (e) {
+      if (saved?.length) {
+        status.textContent = "Showing stores from your last visit here (couldn't refresh: weak signal?).";
+        return;
+      }
+      throw e;
+    }
     if (!places.length) {
       status.textContent = 'No stores found nearby. Search or pick a category below.';
       return;
     }
-    status.textContent = 'Nearest first — tap the right one if it guessed wrong:';
-    places.forEach((p, i) => box.append(
-      el('button', { class: `chip${i === 0 ? ' on' : ''}`, onclick: (e) => {
-        box.querySelectorAll('.chip').forEach((b) => b.classList.remove('on'));
-        e.currentTarget.classList.add('on');
-        select({ title: p.name, cats: p.cats, networks: p.networks });
-      } }, `${p.name} · ${p.distance}m`),
-    ));
-    const p = places[0];
-    select({ title: p.name, cats: p.cats, networks: p.networks });
+    status.textContent = 'Nearest first. Tap the right one if it guessed wrong:';
+    // If you already tapped one of the remembered stores, keep that choice.
+    const keep = saved?.length && places.some((p) => p.name === selection?.title) ? selection : null;
+    showPlaces(places);
+    if (keep) select(keep);
   } catch (e) {
-    status.textContent = e.message || String(e);
+    locateFailed(e.message || 'Something went wrong looking up your location.');
+  } finally {
+    locating = false;
   }
 }
 
@@ -698,11 +736,12 @@ document.addEventListener('visibilitychange', () => {
 });
 
 renderAll();
-await refreshCatalog();
-startCloud();
 if (!state.wallet.length) showView('wallet');
 const params = new URLSearchParams(location.search);
 if (params.get('view')) showView(params.get('view'));
+// Start the store lookup right away; don't wait on the card-data check.
 if (params.has('locate') || (state.settings.autoLocate && state.wallet.length)) locate();
+await refreshCatalog();
+startCloud();
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});

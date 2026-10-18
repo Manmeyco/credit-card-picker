@@ -35,7 +35,8 @@ function cached() {
 /** Returns { catalog, fresh } — fresh is false when we fell back to the cached copy. */
 export async function loadCatalog() {
   try {
-    const res = await fetch(`data/cards.json?t=${Date.now()}`, { cache: 'no-store' });
+    // Give up quickly on a weak connection and use the saved copy instead.
+    const res = await fetch(`data/cards.json?t=${Date.now()}`, { cache: 'no-store', signal: AbortSignal.timeout(6000) });
     if (!res.ok) throw new Error(res.statusText);
     const raw = await res.json();
     try { localStorage.setItem(CACHE_KEY, JSON.stringify(raw)); } catch { /* storage full */ }

@@ -1,7 +1,7 @@
 // Offline support. Network first so card-data and app updates show up as soon
 // as you open the app; falls back to the cached copy when offline.
 // Store lookups (Overpass) are cross-origin and always go to the network.
-const CACHE = 'pick-a-card-v3';
+const CACHE = 'pick-a-card-v4';
 const SHELL = [
   './', 'index.html', 'css/styles.css', 'manifest.webmanifest', 'data/cards.json',
   'js/app.js', 'js/data.js', 'js/engine.js', 'js/store.js', 'js/location.js', 'js/catalog.js', 'js/sync.js',
@@ -21,19 +21,25 @@ self.addEventListener('activate', (e) => {
   );
 });
 
+// On a weak connection, don't wait forever: after a few seconds use the cached
+// copy if there is one, and let the network response refresh the cache later.
+const NETWORK_WAIT_MS = 3500;
+
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET' || url.origin !== location.origin) return;
   const key = url.origin + url.pathname; // ignore cache-busting query strings
-  e.respondWith(
-    fetch(e.request)
-      .then((res) => {
-        if (res.ok) {
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put(key, copy));
-        }
-        return res;
-      })
-      .catch(() => caches.match(key).then((r) => r || caches.match('index.html'))),
-  );
+  const network = fetch(e.request).then((res) => {
+    if (res.ok) {
+      const copy = res.clone();
+      caches.open(CACHE).then((c) => c.put(key, copy));
+    }
+    return res;
+  });
+  e.respondWith((async () => {
+    const cached = await caches.match(key);
+    if (!cached) return network.catch(() => caches.match('index.html'));
+    const slow = new Promise((resolve) => setTimeout(() => resolve(cached), NETWORK_WAIT_MS));
+    return Promise.race([network.catch(() => cached), slow]);
+  })());
 });
