@@ -27,4 +27,8 @@ jobs:
       - name: Deploy rules
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa.json
-        run: npx --yes firebase-tools@13 deploy --only firestore:rules --non-interactive
+        run: |
+          npx --yes firebase-tools@13 deploy --only firestore:rules --non-interactive || {
+            echo "::error::Could not install the rules. If the error above says 'does not have permission', the Firebase key needs the 'Firebase Rules Admin' role (Google Cloud console → IAM → edit the firebase-adminsdk account → Add role). Or paste firestore.rules into Firebase → Firestore Database → Rules → Publish."
+            exit 1
+          }
