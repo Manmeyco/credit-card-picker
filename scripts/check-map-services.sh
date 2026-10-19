@@ -27,3 +27,11 @@ done
 echo "=== Nominatim reverse"
 probe 'GET, like Chrome Android' "https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=$LAT&lon=$LON&zoom=18&extratags=1" \
   -A "$CHROME" -H "Origin: $ORIGIN" -H "Referer: $ORIGIN/"
+
+echo "=== Photon (komoot) reverse: nearby places"
+probe 'all nearby' "https://photon.komoot.io/reverse?lat=$LAT&lon=$LON&limit=15&radius=0.15" -A "$CHROME" -H "Origin: $ORIGIN"
+probe 'shops+amenities' "https://photon.komoot.io/reverse?lat=$LAT&lon=$LON&limit=15&radius=0.15&osm_tag=shop&osm_tag=amenity" -A "$CHROME" -H "Origin: $ORIGIN"
+node -e '
+  const b = require("fs").readFileSync("/tmp/body", "utf8");
+  try { const j = JSON.parse(b); for (const f of j.features || []) console.log("   ", f.properties.osm_key + "=" + f.properties.osm_value, "|", f.properties.name || "(no name)"); }
+  catch (e) { console.log("   not JSON"); }'
