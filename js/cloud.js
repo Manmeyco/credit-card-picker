@@ -12,6 +12,8 @@ let fb = null; // loaded SDK functions + instances
 let user = null;
 let unsubscribe = null;
 let uploadTimer = null;
+let reportError = () => {};
+let reportSynced = () => {};
 
 async function load() {
   if (fb) return fb;
@@ -33,8 +35,10 @@ export const currentUser = () => user;
  *  onFirstSync(remote | null)    — once per sign-in; return 'local' | 'remote' | 'combine'
  *  onRemote(remote)              — the account changed on another device
  */
-export async function initCloud({ onUser, onFirstSync, onRemote, getState, deviceId }) {
+export async function initCloud({ onUser, onFirstSync, onRemote, onSyncError, onSynced, getState, deviceId }) {
   if (!cloudEnabled) return;
+  reportError = onSyncError || reportError;
+  reportSynced = onSynced || reportSynced;
   const f = await load();
 
   // Finish an email-link sign-in if we arrived from the link.
@@ -58,16 +62,23 @@ export async function initCloud({ onUser, onFirstSync, onRemote, getState, devic
     onUser(u);
     if (!u) return;
     const ref = f.doc(f.db, 'users', u.uid);
-    const snap = await f.getDoc(ref);
-    const remoteDoc = snap.exists() ? snap.data() : null;
-    const remote = remoteDoc?.state ? JSON.parse(remoteDoc.state) : null;
-    const choice = await onFirstSync(remote, remoteDoc?.prefs);
-    if (choice !== 'remote') await upload(getState(), deviceId);
+    try {
+      const snap = await f.getDoc(ref);
+      const remoteDoc = snap.exists() ? snap.data() : null;
+      const remote = remoteDoc?.state ? JSON.parse(remoteDoc.state) : null;
+      const choice = await onFirstSync(remote, remoteDoc?.prefs);
+      if (choice !== 'remote') await upload(getState(), deviceId);
+      reportSynced();
+    } catch (e) {
+      reportError(e);
+      return;
+    }
     unsubscribe = f.onSnapshot(ref, (s) => {
       const d = s.data();
+      reportSynced();
       if (!d?.state || d.deviceId === deviceId || s.metadata.hasPendingWrites) return;
       onRemote(JSON.parse(d.state), d.prefs);
-    });
+    }, reportError);
   });
 }
 
@@ -88,7 +99,7 @@ export async function upload(state, deviceId, prefs) {
 export function scheduleUpload(state, deviceId) {
   if (!user) return;
   clearTimeout(uploadTimer);
-  uploadTimer = setTimeout(() => upload(state, deviceId).catch((e) => console.warn('Sync failed', e)), 1500);
+  uploadTimer = setTimeout(() => upload(state, deviceId).then(() => reportSynced(), reportError), 1500);
 }
 
 export async function savePrefs(state, deviceId, prefs) {
@@ -118,4 +129,27 @@ export async function sendEmailLink(email) {
 export async function signOutUser() {
   const f = await load();
   await f.signOut(f.auth);
+}
+
+/** Plain-English explanation of a Firebase or loading error. Pure, for testing. */
+export function describeAccountError(e, { online = true, domain = '' } = {}) {
+  const code = e?.code || '';
+  const known = {
+    'auth/unauthorized-domain': `Sign-in is blocked because ${domain || 'this website'} isn't on Firebase's list of authorized domains yet. Add it in Firebase → Authentication → Settings → Authorized domains.`,
+    'auth/operation-not-allowed': 'This sign-in method is switched off. Turn it on in Firebase → Authentication → Sign-in method.',
+    'auth/configuration-not-found': "Sign-in hasn't been set up for this Firebase project yet. Open Firebase → Authentication and click Get started.",
+    'auth/popup-blocked': 'Your browser blocked the Google sign-in window. Allow pop-ups for this site and try again.',
+    'auth/network-request-failed': online ? "The sign-in request didn't get an answer from Google's servers." : 'Your phone is offline, so you can\'t sign in right now.',
+    'auth/invalid-email': "That doesn't look like a valid email address.",
+    'auth/invalid-action-code': 'That sign-in link has expired or was already used. Request a new one.',
+    'auth/too-many-requests': 'Too many sign-in attempts. Wait a few minutes and try again.',
+    'auth/quota-exceeded': "Firebase's daily limit for sign-in emails has been reached. Try again tomorrow or use Sign in with Google.",
+    'permission-denied': "The database refused the request. Check that Firestore's rules were published (see SETUP-ACCOUNTS.md).",
+    'failed-precondition': "The Firestore database hasn't been created yet. Open Firebase → Firestore Database → Create database.",
+    'unavailable': online ? "The Firestore database didn't answer." : 'Your phone is offline.',
+  };
+  if (known[code]) return `${known[code]} (${code})`;
+  if (code) return `${e.message || 'Unknown error'} (${code})`;
+  if (!online) return 'Your phone is offline, so the sign-in service could not be loaded.';
+  return `The sign-in service could not be loaded from Google (${e?.message || 'unknown error'}).`;
 }

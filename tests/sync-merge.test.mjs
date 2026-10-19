@@ -24,3 +24,11 @@ test('settings stay per-device', () => {
 test('email targeting lists preset ids', () => {
   assert.deepEqual(emailTargeting({ wallet: [{ presetId: 'a' }, { presetId: null }, { presetId: 'a' }] }), ['a']);
 });
+
+test('account errors are explained, not guessed', async () => {
+  const { describeAccountError } = await import('../js/cloud.js');
+  assert.match(describeAccountError({ code: 'auth/unauthorized-domain' }, { domain: 'manmeyco.github.io' }), /manmeyco\.github\.io isn't on Firebase's list of authorized domains/);
+  assert.match(describeAccountError({ code: 'permission-denied' }), /rules were published/);
+  assert.match(describeAccountError(new TypeError('Failed to fetch'), { online: true }), /could not be loaded from Google \(Failed to fetch\)/);
+  assert.match(describeAccountError(new TypeError('x'), { online: false }), /offline/);
+});

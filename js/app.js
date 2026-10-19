@@ -4,7 +4,7 @@ import { syncWallet, syncCurrencies, undoUpdate, acceptUpdate, declineUpdate } f
 import { rankCards, merchantDeals, quarterKey, spentInPeriod, capKey, fmt, fmtPct } from './engine.js';
 import { load, save, cardFromPreset, blankCard, newUid } from './store.js';
 import { getPosition, nearbyPlaces, cachedPlacesNear, inUS } from './location.js';
-import { cloudEnabled, initCloud, scheduleUpload, savePrefs, signInWithGoogle, sendEmailLink, signOutUser } from './cloud.js';
+import { cloudEnabled, initCloud, scheduleUpload, savePrefs, signInWithGoogle, sendEmailLink, signOutUser, describeAccountError } from './cloud.js';
 import { applyRemote, combine } from './sync-merge.js';
 
 const state = load();
@@ -32,7 +32,7 @@ function el(tag, attrs = {}, ...kids) {
   return n;
 }
 
-let account = { user: null, prefs: { emailMine: true, emailAll: false } };
+let account = { user: null, prefs: { emailMine: true, emailAll: false }, syncError: null, syncedAt: null };
 
 function persist() {
   state.modifiedAt = Date.now();
@@ -42,6 +42,7 @@ function persist() {
 }
 
 const catLabel = categoryLabel;
+const accountError = (e) => describeAccountError(e, { online: navigator.onLine, domain: location.host });
 const amount = () => Number($('#amount').value) || 0;
 const rankOpts = (extra = {}) => ({ currencies: state.currencies, log: state.log, amount: amount(), abroad: !!state.settings.abroad, ...extra });
 
@@ -597,11 +598,11 @@ function renderAccount() {
     box.append(
       el('p', { class: 'muted small' }, 'Sign in to keep your cards in sync on every device and browser, and to get email updates.'),
       el('div', { class: 'btn-row' },
-        el('button', { class: 'primary', onclick: () => signInWithGoogle().catch((e) => alert(`Sign-in failed: ${e.message}`)) }, 'Sign in with Google'),
+        el('button', { class: 'primary', onclick: () => signInWithGoogle().catch((e) => alert(`Sign-in failed: ${accountError(e)}`)) }, 'Sign in with Google'),
         el('button', { onclick: async () => {
           const email = prompt('Your email address — we will send you a sign-in link');
           if (!email) return;
-          try { await sendEmailLink(email.trim()); alert('Check your email for the sign-in link. Open it on this device.'); } catch (e) { alert(`Could not send the link: ${e.message}`); }
+          try { await sendEmailLink(email.trim()); alert('Check your email for the sign-in link. Open it on this device.'); } catch (e) { alert(`Could not send the link: ${accountError(e)}`); }
         } }, 'Email me a sign-in link'),
       ),
     );
@@ -610,10 +611,13 @@ function renderAccount() {
   const pref = (key, label) => el('label', { class: 'row' },
     el('input', { type: 'checkbox', checked: !!account.prefs[key], onchange: async (e) => {
       account.prefs = { ...account.prefs, [key]: e.target.checked };
-      try { await savePrefs(state, state.deviceId, account.prefs); toast('Email preferences saved'); } catch (err) { alert(`Could not save: ${err.message}`); }
+      try { await savePrefs(state, state.deviceId, account.prefs); toast('Email preferences saved'); } catch (err) { alert(`Could not save: ${accountError(err)}`); }
     } }), ` ${label}`);
   box.append(
-    el('p', { class: 'small' }, `Signed in as ${u.email || u.displayName || 'you'}. Your cards sync across devices.`),
+    el('p', { class: 'small' }, `Signed in as ${u.email || u.displayName || 'you'}.`),
+    account.syncError
+      ? el('p', { class: 'small warn' }, `Sync isn't working: ${account.syncError}`)
+      : el('p', { class: 'small muted' }, account.syncedAt ? `Cards synced across your devices (last ${new Date(account.syncedAt).toLocaleTimeString()}).` : 'Syncing…'),
     el('h3', {}, 'Email updates'),
     pref('emailMine', 'When cards in my wallet change (new rotating categories, earn rates, benefits)'),
     pref('emailAll', 'All card news: any card changing, new cards, and discontinued cards'),
@@ -645,6 +649,16 @@ async function startCloud() {
       getState: () => state,
       onUser: (u) => {
         account.user = u;
+        account.syncError = null;
+        renderAccount();
+      },
+      onSyncError: (e) => {
+        account.syncError = accountError(e);
+        renderAccount();
+      },
+      onSynced: () => {
+        account.syncError = null;
+        account.syncedAt = Date.now();
         renderAccount();
       },
       onFirstSync: async (remote, prefs) => {
@@ -676,7 +690,8 @@ async function startCloud() {
     });
   } catch (e) {
     console.warn('Accounts unavailable', e);
-    $('#account').replaceChildren(el('p', { class: 'muted small' }, 'Could not reach the sign-in service (offline?). Your cards are still saved on this device.'));
+    $('#account').replaceChildren(el('p', { class: 'muted small warn' }, `${accountError(e)} Your cards are still saved on this device.`),
+      el('button', { onclick: () => location.reload() }, 'Try again'));
   }
 }
 
