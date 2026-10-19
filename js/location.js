@@ -1,15 +1,15 @@
-// "Where am I?" — phone GPS + OpenStreetMap (Overpass API, free, no key).
+// "Where am I?" — phone GPS + OpenStreetMap data (Photon, Overpass, Nominatim; free, no key).
 import { MERCHANTS, MERCHANT_BY_ID, OSM_TAG_CATEGORIES } from './data.js';
 import { merchantFor } from './engine.js';
 
 // Store lookup services, tried in order. All use OpenStreetMap data.
-// Photon is fast and reliable; the public Overpass servers are often
-// overloaded (run the "Check map services" GitHub Action to see current state).
+// Only US- or EU-based operators receive the user's location:
+//   Photon (komoot, Germany), Overpass (overpass-api.de, Germany),
+//   Nominatim (OpenStreetMap Foundation, UK), connectivity check (Google, US).
+// Photon is fast and reliable; the public Overpass server is often overloaded
+// (run the "Check map services" GitHub Action to see current state).
 const PHOTON = 'https://photon.komoot.io/reverse';
-const OVERPASS = [
-  'https://overpass-api.de/api/interpreter',
-  'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
-];
+const OVERPASS = ['https://overpass-api.de/api/interpreter'];
 const NOMINATIM = 'https://nominatim.openstreetmap.org/reverse';
 const CONNECTIVITY_PROBE = 'https://www.gstatic.com/generate_204';
 const PLACES_CACHE_KEY = 'pick-a-card:places';

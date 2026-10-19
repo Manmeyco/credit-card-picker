@@ -15,7 +15,8 @@ probe() { # label url curl-args...
   printf 'body: %s\n' "$(head -c 120 /tmp/body | tr '\n' ' ')"
 }
 
-for url in https://overpass-api.de/api/interpreter https://overpass.private.coffee/api/interpreter https://overpass.kumi.systems/api/interpreter https://maps.mail.ru/osm/tools/overpass/api/interpreter; do
+# Only services the app uses (US/EU operators).
+for url in https://overpass-api.de/api/interpreter; do
   echo "=== $url"
   probe 'POST, curl defaults' "$url" -H "Origin: $ORIGIN" --data-urlencode "data=$QUERY"
   probe 'POST, like Chrome Android' "$url" -A "$CHROME" -H "Origin: $ORIGIN" -H "Referer: $ORIGIN/" -H 'Accept: */*' \

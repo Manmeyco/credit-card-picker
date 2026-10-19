@@ -40,6 +40,17 @@ About widgets: a web app can't add a real Android home-screen widget. The launch
 - Cards you've edited yourself are never overwritten; you get "Use the update / Keep mine" instead.
 - When accounts are set up, subscribers get emails about these changes ([details](SETUP-ACCOUNTS.md)).
 
+## Privacy
+
+Your cards, spending log and settings stay on your phone, or in your own Firebase account if you turn on sync. When you tap **What card here?**, only your location is sent, and only to these US/EU-based services:
+
+| Service | Run by | Used for |
+|---|---|---|
+| Photon | komoot (Germany) | Finding nearby stores (main) |
+| Overpass, overpass-api.de | OpenStreetMap volunteers (Germany) | Backup store lookup |
+| Nominatim | OpenStreetMap Foundation (UK) | Last-resort backup |
+| gstatic.com | Google (US) | Internet check after a failed lookup (no location sent) |
+
 ## Development
 
 No build step. Plain HTML/CSS/ES modules.
