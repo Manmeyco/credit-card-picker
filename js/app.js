@@ -4,7 +4,7 @@ import { syncWallet, syncCurrencies, undoUpdate, acceptUpdate, declineUpdate } f
 import { rankCards, merchantDeals, quarterKey, spentInPeriod, capKey, fmt, fmtPct } from './engine.js';
 import { load, save, cardFromPreset, blankCard, newUid } from './store.js';
 import { getPosition, nearbyPlaces, cachedPlacesNear, inUS } from './location.js';
-import { cloudEnabled, initCloud, scheduleUpload, savePrefs, signInWithGoogle, sendEmailLink, signOutUser, describeAccountError } from './cloud.js';
+import { cloudEnabled, initCloud, scheduleUpload, savePrefs, signInWithGoogle, signInWithEmail, createAccount, resetPassword, signOutUser, describeAccountError } from './cloud.js';
 import { applyRemote, combine } from './sync-merge.js';
 
 const state = load();
@@ -599,12 +599,8 @@ function renderAccount() {
       el('p', { class: 'muted small' }, 'Sign in to keep your cards in sync on every device and browser, and to get email updates.'),
       el('div', { class: 'btn-row' },
         el('button', { class: 'primary', onclick: () => signInWithGoogle().catch((e) => alert(`Sign-in failed: ${accountError(e)}`)) }, 'Sign in with Google'),
-        el('button', { onclick: async () => {
-          const email = prompt('Your email address — we will send you a sign-in link');
-          if (!email) return;
-          try { await sendEmailLink(email.trim()); alert('Check your email for the sign-in link. Open it on this device.'); } catch (e) { alert(`Could not send the link: ${accountError(e)}`); }
-        } }, 'Email me a sign-in link'),
       ),
+      emailSignInForm(),
     );
     return;
   }
@@ -622,6 +618,36 @@ function renderAccount() {
     pref('emailMine', 'When cards in my wallet change (new rotating categories, earn rates, benefits)'),
     pref('emailAll', 'All card news: any card changing, new cards, and discontinued cards'),
     el('button', { onclick: () => signOutUser() }, 'Sign out'),
+  );
+}
+
+function emailSignInForm() {
+  const email = el('input', { type: 'email', placeholder: 'Email', autocomplete: 'email' });
+  const password = el('input', { type: 'password', placeholder: 'Password (6+ characters)', autocomplete: 'current-password' });
+  const msg = el('div', { class: 'small' });
+  const run = async (label, fn) => {
+    msg.className = 'small muted';
+    msg.textContent = `${label}…`;
+    try {
+      await fn();
+    } catch (e) {
+      msg.className = 'small warn';
+      msg.textContent = accountError(e);
+    }
+  };
+  return el('div', { class: 'email-signin' },
+    el('div', { class: 'small muted' }, 'Or use your email and a password:'),
+    email, password,
+    el('div', { class: 'btn-row' },
+      el('button', { onclick: () => run('Signing in', () => signInWithEmail(email.value.trim(), password.value)) }, 'Sign in'),
+      el('button', { onclick: () => run('Creating your account', () => createAccount(email.value.trim(), password.value)) }, 'Create account'),
+      el('button', { class: 'link', onclick: () => run('Sending reset email', async () => {
+        await resetPassword(email.value.trim());
+        msg.className = 'small';
+        msg.textContent = `Password reset email sent to ${email.value.trim()}. Check your inbox (and spam).`;
+      }) }, 'Forgot password?'),
+    ),
+    msg,
   );
 }
 

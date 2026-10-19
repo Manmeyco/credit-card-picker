@@ -2,7 +2,7 @@
 
 Pick-A-Card works without any of this: your cards are saved on the device. Accounts add:
 
-- **Sign in** with Google or with an emailed link.
+- **Sign in** with Google, or with an email and password.
 - **Sync** of your cards, point values and spending log across every phone and browser you sign in on.
 - **Two email lists**, each person choosing in Settings:
   - *My cards*: emails when a card in your wallet changes. That includes new rotating categories, earn rates, and benefits added or removed.
@@ -20,15 +20,14 @@ It uses **Firebase**, Google's free app backend. The free "Spark" plan is plenty
 1. In the left menu: **Build → Authentication → Get started**.
 2. On the **Sign-in method** tab:
    - **Google** → Enable → pick your email as the support email → **Save**.
-   - **Email/Password** → Enable, and also enable **Email link (passwordless sign-in)** → **Save**.
+   - **Email/Password** → Enable → **Save**. (The passwordless "Email link" option isn't needed.)
 3. On the **Settings** tab → **Authorized domains** → **Add domain** → `manmeyco.github.io`.
 
 ## 3. Create the database
 
 1. **Build → Firestore Database → Create database**.
 2. Pick a location near you (e.g. `nam5 (United States)`), then **Start in production mode** → **Create**.
-3. Open the **Rules** tab. Replace everything with the contents of [`firestore.rules`](firestore.rules) from this repo → **Publish**.
-   This makes sure each person can only read and write their own data.
+3. The security rules (each person can only read and write their own data) are installed automatically from [`firestore.rules`](firestore.rules) by the **Deploy Firestore rules** GitHub Action once the `FIREBASE_SERVICE_ACCOUNT` secret from step 5 is set. To install them by hand instead, paste that file into the **Rules** tab and click **Publish**.
 
 ## 4. Connect the app
 

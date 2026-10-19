@@ -16,6 +16,11 @@ const oldRaw = oldPath && existsSync(oldPath) ? JSON.parse(readFileSync(oldPath,
 const newRaw = JSON.parse(readFileSync(newPath, 'utf8'));
 const appUrl = process.env.APP_URL || 'https://manmeyco.github.io/credit-card-picker/';
 
+if (process.env.TEST_EMAIL === 'true') {
+  await sendTest();
+  process.exit(0);
+}
+
 const events = diffCatalogs(oldRaw, newRaw, categoryLabel);
 console.log(`${events.length} change(s) found`);
 for (const e of events) console.log(`- [${e.kind}] ${e.name}: ${e.text}`);
@@ -59,3 +64,41 @@ for (const person of people.values()) {
 }
 console.log(`Sent ${sent} email(s), ${failed} failed, ${people.size} subscriber(s).`);
 if (failed && !sent) process.exit(1);
+
+// Manual check (Actions → Email card updates → Run workflow): proves the
+// Firebase key can read subscribers and Gmail can send.
+async function sendTest() {
+  const { FIREBASE_SERVICE_ACCOUNT, GMAIL_USER, GMAIL_APP_PASSWORD } = process.env;
+  const missing = ['FIREBASE_SERVICE_ACCOUNT', 'GMAIL_USER', 'GMAIL_APP_PASSWORD'].filter((k) => !process.env[k]);
+  if (missing.length) {
+    console.error(`::error::Missing GitHub secret(s): ${missing.join(', ')}`);
+    process.exit(1);
+  }
+  let account;
+  try {
+    account = JSON.parse(FIREBASE_SERVICE_ACCOUNT);
+  } catch {
+    console.error('::error::FIREBASE_SERVICE_ACCOUNT is not valid JSON. Paste the whole downloaded key file.');
+    process.exit(1);
+  }
+  console.log(`Firebase key is for project "${account.project_id}" (${account.client_email}).`);
+  const { initializeApp, cert } = await import('firebase-admin/app');
+  const { getFirestore } = await import('firebase-admin/firestore');
+  initializeApp({ credential: cert(account) });
+  const db = getFirestore();
+  const [all, mine, every] = await Promise.all([
+    db.collection('users').count().get(),
+    db.collection('users').where('prefs.emailMine', '==', true).count().get(),
+    db.collection('users').where('prefs.emailAll', '==', true).count().get(),
+  ]);
+  console.log(`Firestore OK: ${all.data().count} account(s); ${mine.data().count} on "my cards" emails, ${every.data().count} on "all card news".`);
+  const nodemailer = (await import('nodemailer')).default;
+  const transport = nodemailer.createTransport({ service: 'gmail', auth: { user: GMAIL_USER, pass: GMAIL_APP_PASSWORD } });
+  await transport.sendMail({
+    from: `Pick-A-Card <${GMAIL_USER}>`,
+    to: GMAIL_USER,
+    subject: 'Pick-A-Card: test email',
+    text: `This is a test from the "Email card updates" GitHub Action. If you can read it, update emails will work.\n\n${all.data().count} account(s) in Firestore.\n${appUrl}`,
+  });
+  console.log(`Gmail OK: test email sent to ${GMAIL_USER}.`);
+}

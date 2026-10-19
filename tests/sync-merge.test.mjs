@@ -28,7 +28,15 @@ test('email targeting lists preset ids', () => {
 test('account errors are explained, not guessed', async () => {
   const { describeAccountError } = await import('../js/cloud.js');
   assert.match(describeAccountError({ code: 'auth/unauthorized-domain' }, { domain: 'manmeyco.github.io' }), /manmeyco\.github\.io isn't on Firebase's list of authorized domains/);
-  assert.match(describeAccountError({ code: 'permission-denied' }), /rules were published/);
+  assert.match(describeAccountError({ code: 'permission-denied' }), /security rules don't allow it/);
   assert.match(describeAccountError(new TypeError('Failed to fetch'), { online: true }), /could not be loaded from Google \(Failed to fetch\)/);
   assert.match(describeAccountError(new TypeError('x'), { online: false }), /offline/);
+});
+
+test('firestore.rules only uses supported rule functions', async () => {
+  const { readFileSync } = await import('node:fs');
+  const rules = readFileSync(new URL('../firestore.rules', import.meta.url), 'utf8');
+  // request.resource.size() does not exist in the rules language; using it denies every request.
+  assert.doesNotMatch(rules, /resource\.size\(\)/);
+  assert.match(rules, /request\.auth\.uid == uid/);
 });

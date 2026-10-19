@@ -4,7 +4,6 @@ import { firebaseConfig } from './firebase-config.js';
 import { syncedPart, emailTargeting } from './sync-merge.js';
 
 const SDK = 'https://www.gstatic.com/firebasejs/10.12.2';
-const EMAIL_KEY = 'pick-a-card:email-for-signin';
 
 export const cloudEnabled = !!firebaseConfig;
 
@@ -40,20 +39,6 @@ export async function initCloud({ onUser, onFirstSync, onRemote, onSyncError, on
   reportError = onSyncError || reportError;
   reportSynced = onSynced || reportSynced;
   const f = await load();
-
-  // Finish an email-link sign-in if we arrived from the link.
-  if (f.isSignInWithEmailLink(f.auth, location.href)) {
-    let email = localStorage.getItem(EMAIL_KEY);
-    if (!email) email = prompt('Confirm your email to finish signing in');
-    if (email) {
-      try {
-        await f.signInWithEmailLink(f.auth, email, location.href);
-        localStorage.removeItem(EMAIL_KEY);
-      } finally {
-        history.replaceState(null, '', location.pathname);
-      }
-    }
-  }
 
   f.onAuthStateChanged(f.auth, async (u) => {
     unsubscribe?.();
@@ -120,10 +105,19 @@ export async function signInWithGoogle() {
   }
 }
 
-export async function sendEmailLink(email) {
+export async function signInWithEmail(email, password) {
   const f = await load();
-  await f.sendSignInLinkToEmail(f.auth, email, { url: location.origin + location.pathname, handleCodeInApp: true });
-  localStorage.setItem(EMAIL_KEY, email);
+  await f.signInWithEmailAndPassword(f.auth, email, password);
+}
+
+export async function createAccount(email, password) {
+  const f = await load();
+  await f.createUserWithEmailAndPassword(f.auth, email, password);
+}
+
+export async function resetPassword(email) {
+  const f = await load();
+  await f.sendPasswordResetEmail(f.auth, email);
 }
 
 export async function signOutUser() {
@@ -141,10 +135,15 @@ export function describeAccountError(e, { online = true, domain = '' } = {}) {
     'auth/popup-blocked': 'Your browser blocked the Google sign-in window. Allow pop-ups for this site and try again.',
     'auth/network-request-failed': online ? "The sign-in request didn't get an answer from Google's servers." : 'Your phone is offline, so you can\'t sign in right now.',
     'auth/invalid-email': "That doesn't look like a valid email address.",
-    'auth/invalid-action-code': 'That sign-in link has expired or was already used. Request a new one.',
+    'auth/invalid-credential': 'Wrong email or password. If you signed up with Google, use "Sign in with Google" instead.',
+    'auth/wrong-password': 'Wrong password.',
+    'auth/user-not-found': 'There is no account with that email. Tap "Create account" to make one.',
+    'auth/email-already-in-use': 'An account with that email already exists. Tap "Sign in" instead, or "Forgot password".',
+    'auth/weak-password': 'Choose a password with at least 6 characters.',
+    'auth/missing-password': 'Enter a password.',
+    'auth/missing-email': 'Enter your email address.',
     'auth/too-many-requests': 'Too many sign-in attempts. Wait a few minutes and try again.',
-    'auth/quota-exceeded': "Firebase's daily limit for sign-in emails has been reached. Try again tomorrow or use Sign in with Google.",
-    'permission-denied': "The database refused the request. Check that Firestore's rules were published (see SETUP-ACCOUNTS.md).",
+    'permission-denied': "The database refused the request: its security rules don't allow it. The rules in firestore.rules may not be deployed yet (GitHub Actions → Deploy Firestore rules).",
     'failed-precondition': "The Firestore database hasn't been created yet. Open Firebase → Firestore Database → Create database.",
     'unavailable': online ? "The Firestore database didn't answer." : 'Your phone is offline.',
   };
