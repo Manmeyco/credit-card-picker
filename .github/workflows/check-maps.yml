@@ -1,0 +1,21 @@
+name: Check map services
+
+# Manual health check for the store-lookup services the app depends on.
+on:
+  workflow_dispatch:
+    inputs:
+      lat: { description: Latitude to test, default: '40.7505' }
+      lon: { description: Longitude to test, default: '-73.9934' }
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: scripts/check-map-services.sh
+        env:
+          LAT: ${{ inputs.lat }}
+          LON: ${{ inputs.lon }}
