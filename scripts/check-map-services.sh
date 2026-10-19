@@ -1,24 +1,29 @@
 #!/usr/bin/env bash
-# Sends the app's real store-lookup request to each map service, the way a
-# browser on manmeyco.github.io would, and reports what comes back.
+# Sends the app's real store-lookup request to each map service, the way Chrome
+# on Android at manmeyco.github.io would, and reports what comes back.
 # Run by .github/workflows/check-maps.yml (Actions tab → Check map services).
-LAT=${LAT:-40.7505}; LON=${LON:--73.9934}   # a dense block in Manhattan
+LAT=${LAT:-40.7505}; LON=${LON:--73.9934}
 ORIGIN=${ORIGIN:-https://manmeyco.github.io}
-Q="[out:json][timeout:10];(nwr(around:120,$LAT,$LON)[shop][name];nwr(around:120,$LAT,$LON)[amenity~\"^(restaurant|fast_food|cafe|pharmacy|fuel)\$\"];);out center tags 60;"
+QUERY=$(node --input-type=module -e "import('./js/location.js').then(m => process.stdout.write(m.overpassQuery($LAT, $LON, 120)))")
+CHROME='Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Mobile Safari/537.36'
+
+probe() { # label url curl-args...
+  local label=$1 url=$2; shift 2
+  printf '%-28s ' "$label"
+  curl -sS -m 25 -o /tmp/body -D /tmp/headers -w 'status=%{http_code} time=%{time_total}s ' "$@" "$url" 2>&1 | tr '\n' ' '
+  if grep -qi '^access-control-allow-origin' /tmp/headers; then printf 'CORS=yes '; else printf 'CORS=NO '; fi
+  printf 'body: %s\n' "$(head -c 120 /tmp/body | tr '\n' ' ')"
+}
 
 for url in https://overpass-api.de/api/interpreter https://overpass.private.coffee/api/interpreter https://overpass.kumi.systems/api/interpreter https://maps.mail.ru/osm/tools/overpass/api/interpreter; do
   echo "=== $url"
-  echo "-- CORS preflight-free POST (what the app sends):"
-  curl -sS -m 25 -o /tmp/body -D /tmp/headers -w 'status=%{http_code} time=%{time_total}s\n' \
-    -H "Origin: $ORIGIN" -H "Referer: $ORIGIN/credit-card-picker/" \
-    --data-urlencode "data=$Q" "$url" || echo "curl failed (exit $?)"
-  grep -i '^access-control-allow-origin' /tmp/headers || echo "(no Access-Control-Allow-Origin header: a browser would report 'Failed to fetch')"
-  head -c 300 /tmp/body | tr '\n' ' '; echo; echo
+  probe 'POST, curl defaults' "$url" -H "Origin: $ORIGIN" --data-urlencode "data=$QUERY"
+  probe 'POST, like Chrome Android' "$url" -A "$CHROME" -H "Origin: $ORIGIN" -H "Referer: $ORIGIN/" -H 'Accept: */*' \
+    -H 'Sec-Fetch-Mode: cors' -H 'Sec-Fetch-Site: cross-site' -H 'Sec-Fetch-Dest: empty' --data-urlencode "data=$QUERY"
+  probe 'GET, like Chrome Android' "$url?data=$(node -e 'process.stdout.write(encodeURIComponent(process.argv[1]))' "$QUERY")" \
+    -A "$CHROME" -H "Origin: $ORIGIN" -H "Referer: $ORIGIN/" -H 'Accept: */*' -H 'Sec-Fetch-Mode: cors'
 done
 
-echo "=== Nominatim reverse geocode (fallback)"
-curl -sS -m 20 -o /tmp/body -D /tmp/headers -w 'status=%{http_code} time=%{time_total}s\n' \
-  -H "Origin: $ORIGIN" -H "Referer: $ORIGIN/credit-card-picker/" \
-  "https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=$LAT&lon=$LON&zoom=18&extratags=1"
-grep -i '^access-control-allow-origin' /tmp/headers || echo "(no CORS header)"
-head -c 400 /tmp/body; echo
+echo "=== Nominatim reverse"
+probe 'GET, like Chrome Android' "https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=$LAT&lon=$LON&zoom=18&extratags=1" \
+  -A "$CHROME" -H "Origin: $ORIGIN" -H "Referer: $ORIGIN/"

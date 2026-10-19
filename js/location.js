@@ -33,7 +33,7 @@ export async function getPosition() {
   }
 }
 
-function overpassQuery(lat, lon, r) {
+export function overpassQuery(lat, lon, r) {
   const a = `(around:${r},${lat},${lon})`;
   return `[out:json][timeout:10];(
 nwr${a}[shop][name];
