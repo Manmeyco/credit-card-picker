@@ -183,12 +183,13 @@ function showPlaces(list) {
   select({ title: p.name, cats: p.cats, networks: p.networks });
 }
 
-function locateFailed(message) {
+function locateFailed(err) {
   const status = $('#locateStatus');
   status.replaceChildren(
-    el('span', { class: 'warn' }, message), ' ',
+    el('span', { class: 'warn' }, err.message || 'The location lookup failed.'), ' ',
     el('button', { class: 'link', onclick: locate }, 'Try again'),
-    el('div', {}, 'Or type the store name in the search box, or tap a category below.'),
+    el('div', {}, 'You can also type the store name in the search box or tap a category below.'),
+    err.details && el('details', { class: 'small' }, el('summary', {}, 'What happened'), el('div', {}, err.details)),
   );
 }
 
@@ -216,26 +217,26 @@ async function locate() {
     } else {
       status.textContent = `Looking up stores near you (±${Math.round(pos.accuracy)} m)…`;
     }
+    let source;
     try {
-      places = await nearbyPlaces(pos.latitude, pos.longitude, radius);
+      ({ places, source } = await nearbyPlaces(pos.latitude, pos.longitude, radius));
     } catch (e) {
       if (saved?.length) {
-        status.textContent = "Showing stores from your last visit here (couldn't refresh: weak signal?).";
+        status.replaceChildren(
+          'Showing stores saved from your last visit here. ',
+          el('details', { class: 'small' }, el('summary', {}, "Why it couldn't refresh"), el('div', {}, `${e.message} ${e.details || ''}`)),
+        );
         return;
       }
       throw e;
     }
-    if (!places.length) {
-      status.textContent = 'No stores found nearby. Search or pick a category below.';
-      return;
-    }
-    status.textContent = 'Nearest first. Tap the right one if it guessed wrong:';
+    status.textContent = `Nearest first (±${Math.round(pos.accuracy)} m, from ${source}). Tap the right one if it guessed wrong:`;
     // If you already tapped one of the remembered stores, keep that choice.
     const keep = saved?.length && places.some((p) => p.name === selection?.title) ? selection : null;
     showPlaces(places);
     if (keep) select(keep);
   } catch (e) {
-    locateFailed(e.message || 'Something went wrong looking up your location.');
+    locateFailed(e);
   } finally {
     locating = false;
   }

@@ -2,15 +2,17 @@
 import { MERCHANTS, MERCHANT_BY_ID, OSM_TAG_CATEGORIES } from './data.js';
 import { merchantFor } from './engine.js';
 
-// Public Overpass servers. The one that last worked is tried first.
-const ENDPOINTS = [
+// Store lookup services, tried in order. All use OpenStreetMap data.
+// Photon is fast and reliable; the public Overpass servers are often
+// overloaded (run the "Check map services" GitHub Action to see current state).
+const PHOTON = 'https://photon.komoot.io/reverse';
+const OVERPASS = [
   'https://overpass-api.de/api/interpreter',
-  'https://overpass.private.coffee/api/interpreter',
-  'https://overpass.kumi.systems/api/interpreter',
+  'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
 ];
-const GOOD_ENDPOINT_KEY = 'pick-a-card:overpass';
+const NOMINATIM = 'https://nominatim.openstreetmap.org/reverse';
+const CONNECTIVITY_PROBE = 'https://www.gstatic.com/generate_204';
 const PLACES_CACHE_KEY = 'pick-a-card:places';
-const REQUEST_TIMEOUT_MS = 9000;
 
 function tryPosition(options) {
   return new Promise((resolve, reject) => {
@@ -19,16 +21,19 @@ function tryPosition(options) {
 }
 
 export async function getPosition() {
-  if (!navigator.geolocation) throw new Error('This browser has no location support.');
+  if (!navigator.geolocation) throw new Error('This browser does not support location.');
   try {
     return await tryPosition({ enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 });
   } catch (e) {
-    if (e.code === 1) throw new Error('Location permission is off for this app. Turn it on in your browser settings.');
-    // Indoors GPS often times out; accept a rougher or recent fix instead.
+    if (e.code === 1) throw new Error('Location permission is off for this app. Turn it on in your browser or phone settings.');
+    // A precise fix can take long indoors; accept a rougher or recent one instead.
     try {
       return await tryPosition({ enableHighAccuracy: false, timeout: 10000, maximumAge: 5 * 60 * 1000 });
-    } catch {
-      throw new Error('Could not get your location (weak GPS indoors?).');
+    } catch (e2) {
+      if (e2.code === 1) throw new Error('Location permission is off for this app. Turn it on in your browser or phone settings.');
+      throw new Error(e2.code === 3
+        ? "Your phone didn't report a location within 20 seconds."
+        : "Your phone couldn't work out its location (it reported \"position unavailable\"). Check that Location is on.");
     }
   }
 }
@@ -51,29 +56,92 @@ function storageSet(key, value) {
   try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* storage full or blocked */ }
 }
 
-export class LookupError extends Error {}
-
-async function fetchOverpass(query) {
-  const preferred = storageGet(GOOD_ENDPOINT_KEY);
-  const order = [...ENDPOINTS].sort((a, b) => (b === preferred) - (a === preferred));
-  for (const url of order) {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), REQUEST_TIMEOUT_MS);
-    try {
-      const res = await fetch(url, { method: 'POST', body: new URLSearchParams({ data: query }), signal: ctrl.signal });
-      if (!res.ok) continue;
-      const json = await res.json();
-      storageSet(GOOD_ENDPOINT_KEY, url);
-      return json;
-    } catch {
-      // Network error, timeout, or a busy server without CORS headers: try the next one.
-    } finally {
-      clearTimeout(timer);
-    }
+/** Fetch JSON, describing exactly how it failed. */
+async function getJson(url, options = {}, timeoutMs = 8000) {
+  const started = Date.now();
+  let res;
+  try {
+    res = await fetch(url, { ...options, signal: AbortSignal.timeout(timeoutMs) });
+  } catch (e) {
+    if (e.name === 'TimeoutError' || e.name === 'AbortError') throw new Error(`no answer within ${Math.round(timeoutMs / 1000)} s`);
+    // Browsers report refused connections, DNS failures and error pages without
+    // CORS headers identically, so this is as specific as a web app can be.
+    throw new Error(`request failed after ${((Date.now() - started) / 1000).toFixed(1)} s (server unreachable or returned an error)`);
   }
-  throw new LookupError(navigator.onLine === false
-    ? "You're offline, so the store lookup can't run."
-    : "Couldn't reach the map service. Signal inside stores is often weak.");
+  if (!res.ok) throw new Error(`server error ${res.status}`);
+  try {
+    return await res.json();
+  } catch {
+    throw new Error('sent back something that was not map data');
+  }
+}
+
+export function photonToTags(feature) {
+  const p = feature.properties || {};
+  const tags = { name: p.name };
+  if (p.osm_key && p.osm_value) tags[p.osm_key] = p.osm_value;
+  const [lon, lat] = feature.geometry?.coordinates || [];
+  return { tags, lat, lon };
+}
+
+const SOURCES = [
+  {
+    name: 'Photon',
+    async lookup(lat, lon, radius) {
+      const params = new URLSearchParams({ lat, lon, limit: 25, radius: Math.max(0.05, radius / 1000).toFixed(3) });
+      for (const t of ['shop', 'amenity', 'tourism', 'leisure', 'aeroway']) params.append('osm_tag', t);
+      const json = await getJson(`${PHOTON}?${params}`);
+      return (json.features || []).map(photonToTags);
+    },
+  },
+  {
+    name: 'Overpass',
+    async lookup(lat, lon, radius) {
+      const errors = [];
+      for (const url of OVERPASS) {
+        try {
+          const json = await getJson(url, { method: 'POST', body: new URLSearchParams({ data: overpassQuery(lat, lon, radius) }) }, 10000);
+          return (json.elements || []).map((el) => ({ tags: el.tags || {}, lat: el.lat ?? el.center?.lat, lon: el.lon ?? el.center?.lon }));
+        } catch (e) {
+          errors.push(`${new URL(url).host}: ${e.message}`);
+        }
+      }
+      throw new Error(errors.join('; '));
+    },
+  },
+  {
+    name: 'Nominatim',
+    async lookup(lat, lon) {
+      const json = await getJson(`${NOMINATIM}?${new URLSearchParams({ format: 'jsonv2', lat, lon, zoom: 18, extratags: 1, namedetails: 1 })}`);
+      if (!json || json.error || !json.category) return [];
+      return [{ tags: { ...(json.extratags || {}), name: json.name, [json.category]: json.type }, lat: Number(json.lat), lon: Number(json.lon) }];
+    },
+  },
+];
+
+async function internetWorks() {
+  try {
+    await fetch(CONNECTIVITY_PROBE, { mode: 'no-cors', cache: 'no-store', signal: AbortSignal.timeout(5000) });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export class LookupError extends Error {
+  constructor(message, details) {
+    super(message);
+    this.details = details;
+  }
+}
+
+/** Turn what happened into an accurate message. Pure, for testing. */
+export function explainFailure({ online, internet, attempts, radius }) {
+  const details = attempts.map((a) => `${a.name}: ${a.error || `found ${a.count} place(s), none usable`}`).join(' · ');
+  if (online === false) return new LookupError('Your phone is offline (no Wi-Fi or mobile data), so stores nearby can\'t be looked up.', details);
+  if (internet === false) return new LookupError("Your phone couldn't reach the internet just now (a test request to Google also failed), so stores nearby can't be looked up.", details);
+  if (attempts.some((a) => !a.error)) return new LookupError(`No stores are on the map within ${Math.round(radius)} m of you. Search for the store or tap a category instead.`, details);
+  return new LookupError('The map services that list nearby stores aren\'t answering right now. Your internet connection is working.', details);
 }
 
 // ---- Remembered lookups, so places you've been work without signal ----
@@ -129,15 +197,11 @@ export function classifyTags(tags) {
   return { name: label || '(unnamed)', cats, networks: merchant?.networks, merchant: merchant?.name };
 }
 
-export async function nearbyPlaces(lat, lon, radius = 120) {
-  const data = await fetchOverpass(overpassQuery(lat, lon, radius));
+export function toPlaces(raw, lat, lon) {
   const seen = new Set();
   const places = [];
-  for (const el of data.elements || []) {
-    const tags = el.tags || {};
-    const plat = el.lat ?? el.center?.lat;
-    const plon = el.lon ?? el.center?.lon;
-    if (plat == null) continue;
+  for (const { tags, lat: plat, lon: plon } of raw) {
+    if (plat == null || plon == null) continue;
     const p = classifyTags(tags);
     if (p.name === '(unnamed)' && p.cats[0] === 'other') continue;
     const dedupe = `${p.name}|${p.cats.join()}`;
@@ -145,10 +209,28 @@ export async function nearbyPlaces(lat, lon, radius = 120) {
     seen.add(dedupe);
     places.push({ ...p, lat: plat, lon: plon, distance: Math.round(distanceM(lat, lon, plat, plon)) });
   }
-  places.sort((a, b) => a.distance - b.distance);
-  const top = places.slice(0, 12);
-  rememberPlaces(lat, lon, top);
-  return top;
+  return places.sort((a, b) => a.distance - b.distance).slice(0, 12);
+}
+
+/** @returns {Promise<{ places, source }>} or throws LookupError with an accurate reason. */
+export async function nearbyPlaces(lat, lon, radius = 120) {
+  const attempts = [];
+  for (const source of SOURCES) {
+    try {
+      const raw = await source.lookup(lat, lon, radius);
+      const places = toPlaces(raw, lat, lon);
+      attempts.push({ name: source.name, count: raw.length });
+      if (places.length) {
+        rememberPlaces(lat, lon, places);
+        return { places, source: source.name };
+      }
+    } catch (e) {
+      attempts.push({ name: source.name, error: e.message });
+    }
+  }
+  const online = navigator.onLine;
+  const internet = online === false ? false : await internetWorks();
+  throw explainFailure({ online, internet, attempts, radius });
 }
 
 // Rough bounding boxes for the US, Alaska, Hawaii and Puerto Rico.

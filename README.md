@@ -7,7 +7,7 @@ A phone-friendly web app that tells you which card to use for a purchase. It fix
 
 Other features:
 
-- **📍 What card here?** Uses your phone's GPS and OpenStreetMap to find the store you're in, then ranks your cards for it. It recognizes hotel sub-brands too: a Hampton Inn counts as Hilton, a Courtyard as Marriott.
+- **📍 What card here?** Uses your phone's GPS and OpenStreetMap data (via Photon, with Overpass and Nominatim as backups) to find the store you're in, then ranks your cards for it. It recognizes hotel sub-brands too: a Hampton Inn counts as Hilton, a Courtyard as Marriott.
 - **Store-specific deals.** Partner bonuses like Sapphire Preferred 5x at Lyft, travel-portal multipliers and co-brand hotel/airline bonuses count when you're at that merchant. When you pick a general category, a "Better at specific places" hint shows them. For example, Rideshare shows "Lyft: Sapphire Preferred 5%".
 - **Benefits that tip the decision.** Rental car insurance, cell phone protection, trip delay, lounge access and credits show up as 💡 tips and break ties.
 - **Traveling abroad.** The app notices when you're outside the US and subtracts foreign transaction fees.
