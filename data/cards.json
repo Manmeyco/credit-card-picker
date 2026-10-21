@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "updated": "2026-10-16",
+  "updated": "2026-10-21",
   "currencies": {
     "cash": {
       "name": "Cash back",
@@ -167,7 +167,7 @@
             "cats": [
               "dining",
               "groceries",
-              "charity"
+              "m:red_cross"
             ],
             "rate": 5,
             "rates": {
@@ -1338,12 +1338,9 @@
             "cats": [
               "dining",
               "groceries",
-              "charity"
+              "m:red_cross"
             ],
-            "rate": 5,
-            "rates": {
-              "dining": 7
-            }
+            "rate": 5
           }
         }
       },

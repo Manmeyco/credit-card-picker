@@ -110,7 +110,7 @@ const MERCHANT_LIST = [
   { name: 'Hilton', match: /hilton|hampton inn|doubletree|embassy suites|homewood suites|home2 suites|tru by|waldorf|conrad|curio|canopy by|tapestry|motto by|spark by|lxr/i, cats: ['hotels'] },
   { name: 'Hyatt', match: /hyatt|andaz|thompson hotel|alila|caption by|the standard/i, cats: ['hotels'] },
   { name: 'Planet Fitness', match: /planet\s*fitness/i, cats: ['fitness'] },
-  { name: 'Red Cross', match: /red\s*cross/i, cats: ['charity'] },
+  { name: 'Red Cross', match: /red\s*cross/i, cats: ['charity'] }, // id: red_cross (Chase Freedom Q4 2026)
   { name: 'Instacart', match: /instacart/i, cats: ['groceries', 'online'] },
   { name: 'Grubhub', match: /grubhub/i, cats: ['dining'] },
   { name: 'Peloton', match: /peloton/i, cats: ['fitness'] },

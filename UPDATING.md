@@ -58,6 +58,11 @@ anything uncertain in the run summary instead.
   `js/data.js`, the one code change allowed in a data update. Map issuer wording to the closest category. If no category fits, say so in
   the summary rather than inventing one.
 - Rotating quarter: `"YYYY-Qn": { "cats": [...], "rate": 5, "rates"?: { "dining": 7 } }`.
+  **Match the issuer's wording exactly.** If the bonus is for one merchant (e.g. "American Red
+  Cross", "Amazon.com", "PayPal"), use that merchant's `m:<id>` category, not the general
+  category (`charity`, `online`). Otherwise the app awards the bonus at every store in that category.
+  `rates` must reflect each card's own base rates: Freedom Flex's 7% dining comes from its 3%
+  dining plus the 4% bonus; the legacy Freedom gets a flat 5%.
   `rates` overrides the rate for specific categories, as with Freedom Flex dining, which stacks
   to 7x. Adding or fixing a quarter needs **no** version bump; it reaches every phone
   automatically.

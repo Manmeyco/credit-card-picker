@@ -145,3 +145,12 @@ test('Costco gas stations earn the Costco Visa 5% rate', () => {
   assert.equal(s.pct, 5);
   assert.equal(scoreCard(card('costco_citi'), ['gas', 'other'], opts()).pct, 4);
 });
+
+test('Freedom Q4 2026: 5% only at the Red Cross, not all charities; legacy Freedom dining is 5%', () => {
+  const flex = card('freedom_flex', { activated: { '2026-Q4': true } });
+  const legacy = card('chase_freedom_legacy', { activated: { '2026-Q4': true } });
+  assert.equal(scoreCard(flex, ['charity', 'other'], opts()).pct, 1);
+  assert.equal(scoreCard(flex, ['charity', 'm:red_cross', 'other'], opts()).pct, 5);
+  assert.equal(scoreCard(legacy, ['dining', 'other'], opts()).pct, 5);
+  assert.equal(scoreCard(flex, ['dining', 'other'], opts()).pct, 7);
+});
